@@ -37,7 +37,8 @@ jobs:
         run: npx expo prebuild --platform android --no-install
 
       - name: Donner plus de mémoire à Gradle
-        run: echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> android/gradle.properties
+        # Le fichier généré peut ne pas finir par un retour à la ligne : on en ajoute un avant d'écrire.
+        run: printf '\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n' >> android/gradle.properties
 
       - name: Construire l'APK
         working-directory: android
