@@ -30,12 +30,24 @@ npm run typecheck
 ```
 
 Le lecteur utilise des modules natifs : Expo Go ne suffit pas pour tester la lecture en arrière-plan.
-Créez un *development build* Android (compte Expo gratuit) :
+Il faut une vraie application installée. Deux options :
+
+**Option A — APK dans le cloud (le plus simple, sans Android Studio)**
+
+```bash
+npx eas-cli login                                   # compte Expo gratuit
+npx eas-cli build --profile preview --platform android
+```
+
+Le build donne un lien de téléchargement d'un APK : ouvrez-le sur la tablette et installez
+(autorisez « installer des applications inconnues »). Le même APK s'installe sur le téléphone
+et sur les autres tablettes.
+
+**Option B — build local (tablette en USB, débogage USB activé, Android Studio installé)**
 
 ```bash
 npx expo prebuild --platform android
-npx expo run:android          # tablette branchée en USB, débogage USB activé
-# ou : npx eas-cli build --profile development --platform android   (APK à installer)
+npx expo run:android
 ```
 
 ## Prototype de risque — à faire en premier sur la tablette
