@@ -1,0 +1,37 @@
+{
+  "name": "appli-musique",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "expo": "~57.0.26",
+    "expo-audio": "^57.0.5",
+    "expo-constants": "^57.0.20",
+    "expo-crypto": "^57.0.3",
+    "expo-document-picker": "^57.0.3",
+    "expo-file-system": "^57.0.7",
+    "expo-keep-awake": "^57.0.2",
+    "expo-linking": "^57.0.11",
+    "expo-router": "^57.0.24",
+    "expo-sqlite": "^57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "^57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "^5.10.1",
+    "react-native-screens": "^4.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "expo lint"
+  },
+  "private": true
+}
