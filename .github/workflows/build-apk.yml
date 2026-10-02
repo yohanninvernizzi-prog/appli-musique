@@ -1,0 +1,62 @@
+name: Construire l'APK Android
+
+# Lancement manuel : onglet Actions > "Construire l'APK Android" > Run workflow.
+# Le résultat est publié dans l'onglet Releases du dépôt, téléchargeable depuis un téléphone.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier le code (types et tests)
+        run: |
+          npx tsc --noEmit
+          npx vitest run
+
+      - name: Générer le projet Android
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Donner plus de mémoire à Gradle
+        run: echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> android/gradle.properties
+
+      - name: Construire l'APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a --no-daemon
+
+      - name: Renommer l'APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk appli-musique.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appli-musique-apk
+          path: appli-musique.apk
+
+      - name: Publier dans les Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="apk-${{ github.run_number }}"
+          gh release create "$TAG" appli-musique.apk \
+            --title "APK n°${{ github.run_number }}" \
+            --notes "Build du ${{ github.sha }} (branche ${{ github.ref_name }}). Ouvrir sur la tablette, télécharger appli-musique.apk et l'installer." \
+            --prerelease --target "${{ github.sha }}"

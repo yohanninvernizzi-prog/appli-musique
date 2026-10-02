@@ -32,6 +32,17 @@ npm run typecheck
 Le lecteur utilise des modules natifs : Expo Go ne suffit pas pour tester la lecture en arrière-plan.
 Il faut une vraie application installée. Deux options :
 
+**Option 0 — sans ordinateur, depuis un téléphone (GitHub construit l'APK)**
+
+1. Dans le navigateur du téléphone, ouvrez le dépôt GitHub (activez « Version pour ordinateur » dans le menu du navigateur).
+2. Onglet **Actions** → **Construire l'APK Android** → **Run workflow** → choisissez la branche → **Run workflow**.
+3. Attendez 15 à 30 minutes (pastille verte = terminé).
+4. Onglet **Releases** (ou colonne de droite de la page d'accueil) → dernière version « APK n°… » → téléchargez `appli-musique.apk`.
+5. Ouvrez le fichier sur la tablette et installez-le (autorisez « installer des applications inconnues »).
+
+Aucun compte Expo n'est nécessaire. L'APK est signé avec la clé de débogage standard : les builds suivants
+s'installent par-dessus le précédent sans désinstaller (vos données sont conservées).
+
 **Option A — APK dans le cloud (le plus simple, sans Android Studio)**
 
 ```bash
