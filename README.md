@@ -1,107 +1,71 @@
-# Appli Musique
+# Appli Musique — la radio d'Aqua2Lacs
 
-Lecteur de musique **autonome** (type Spotify, mais avec vos propres fichiers) pour Android, pensé pour tablette.
-Playlists, lecture aléatoire / linéaire / boucle, et **annonces récurrentes** (ex. « tel audio toutes les 15 ou 30 min ») :
-la musique s'éteint avec un fondu, l'annonce passe, puis la musique reprend automatiquement.
+Radio d'ambiance pour tablette Android : elle lit vos musiques en ordre aléatoire, passe vos **publicités audio à
+intervalle régulier**, et démarre et s'arrête **toute seule selon les horaires d'ouverture** du centre.
 
-## État : V1 (prototype fonctionnel)
+## État : V2, à valider sur la tablette
 
 | Fonction | Statut |
 |---|---|
-| Import de fichiers audio (MP3, M4A, WAV, FLAC, OGG…) copiés dans le stockage de l'app | fait |
-| Bibliothèque (musiques / annonces), suppression | fait |
-| Playlists (création, ordre, modes) | fait |
-| Lecteur : lecture, pause, précédent, suivant, ±15 s, barre de progression | fait |
-| Modes : linéaire, aléatoire, sans boucle, boucle playlist, boucle titre | fait + testé |
-| Annonces récurrentes calées sur l'horloge, plages horaires, jours, fondu, volume | fait + testé |
-| Fondu sortant → annonce → reprise avec fondu entrant | fait, **à valider sur appareil** |
-| Mode radio (diffusion continue, maintien de session audio) | fait, **à valider sur appareil** |
-| Tags ID3 et pochettes | à faire (le titre vient du nom de fichier) |
-| Compte, synchro multi-appareils, catalogue libre de droit, relais manuel | prévus (V1.5 à V2.5) |
+| Import de musiques et de publicités (MP3, M4A, WAV, FLAC, OGG…) | fait |
+| Lecture aléatoire en boucle de toute la musique ou d'une playlist | fait |
+| Horaires d'ouverture par jour, plusieurs plages possibles | fait + logique testée |
+| Publicités à tour de rôle, intervalle au choix, fondu et volume réglables | fait + logique testée |
+| Démarrage et arrêt automatiques aux horaires | fait, **à valider sur appareil** |
+| Diffusion écran éteint | **non vérifiée** : gardez l'écran allumé pour l'instant |
+| Journal conservé et partageable (retard de chaque publicité) | fait |
+| Démarrage automatique au redémarrage de la tablette | à faire (il faut ouvrir l'app) |
 
-## Lancer le projet
+## Installer l'application depuis un téléphone (GitHub construit l'APK)
 
-Prérequis : Node.js 20+, un téléphone ou une tablette Android.
-
-```bash
-npm install
-npm test            # tests unitaires (file d'attente, planificateur, fondus)
-npm run typecheck
-```
-
-Le lecteur utilise des modules natifs : Expo Go ne suffit pas pour tester la lecture en arrière-plan.
-Il faut une vraie application installée. Deux options :
-
-**Option 0 — sans ordinateur, depuis un téléphone (GitHub construit l'APK)**
-
-1. Dans le navigateur du téléphone, ouvrez le dépôt GitHub (activez « Version pour ordinateur » dans le menu du navigateur).
+1. Dans le navigateur, ouvrez le dépôt GitHub (activez « Version pour ordinateur » dans le menu du navigateur).
 2. Onglet **Actions** → **Construire l'APK Android** → **Run workflow** → choisissez la branche → **Run workflow**.
 3. Attendez 15 à 30 minutes (pastille verte = terminé).
-4. Onglet **Releases** (ou colonne de droite de la page d'accueil) → dernière version « APK n°… » → téléchargez `appli-musique.apk`.
+4. Onglet **Releases** → dernière version « APK n°… » → téléchargez `appli-musique.apk`.
 5. Ouvrez le fichier sur la tablette et installez-le (autorisez « installer des applications inconnues »).
 
-Aucun compte Expo n'est nécessaire. L'APK est signé avec la clé de débogage standard : les builds suivants
-s'installent par-dessus le précédent sans désinstaller (vos données sont conservées).
+Les builds suivants s'installent par-dessus le précédent : vos musiques et réglages sont conservés.
 
-**Option A — APK dans le cloud (le plus simple, sans Android Studio)**
+## Première mise en route
+
+1. **Musique** → « Importer » : choisissez vos fichiers (plusieurs à la fois).
+2. **Publicités** → « Ajouter une publicité », puis choisissez l'intervalle (par exemple 15 min).
+3. **Horaires** → pour chaque jour, « Ajouter une plage ». « Copier vers… » recopie un jour sur un autre.
+4. **Radio** → activez « Diffusion automatique ». Laissez l'application ouverte et la tablette branchée.
+
+Pour essayer sans attendre l'heure d'ouverture : **Radio** → « Diffuser maintenant », puis dans **Publicités** touchez
+le bouton d'écoute d'une publicité : la musique doit baisser, la publicité passer, puis la musique reprendre.
+
+## Test à faire sur la tablette
+
+1. Créez une plage qui commence dans quelques minutes et se termine 40 minutes plus tard, intervalle 5 min.
+2. Vérifiez écran allumé : démarrage à l'heure, publicités toutes les 5 min à tour de rôle, arrêt à l'heure.
+3. Refaites le test **écran éteint**. Ensuite : **Radio** → « Journal et diagnostic » → « Partager ».
+   Chaque publicité y figure avec son retard ; une ligne « Application suspendue » indique qu'Android a endormi l'app.
+4. En cas de retards : « Réglages de batterie » → autorisez l'application à ignorer l'optimisation, puis recommencez.
+
+## Droits musicaux
+
+Diffuser de la musique dans un lieu ouvert au public demande une autorisation (SACEM/SPRE en France) ou des musiques
+dont la licence autorise l'usage commercial. Les licences « non commercial » (NC) ne suffisent pas.
+
+## Pour les développeurs
 
 ```bash
-npx eas-cli login                                   # compte Expo gratuit
-npx eas-cli build --profile preview --platform android
+npm ci
+npm test            # tests de la logique (horaires, publicités, file d'attente, fondus)
+npm run typecheck
+npm run lint
 ```
-
-Le build donne un lien de téléchargement d'un APK : ouvrez-le sur la tablette et installez
-(autorisez « installer des applications inconnues »). Le même APK s'installe sur le téléphone
-et sur les autres tablettes.
-
-**Option B — build local (tablette en USB, débogage USB activé, Android Studio installé)**
-
-```bash
-npx expo prebuild --platform android
-npx expo run:android
-```
-
-## Prototype de risque — à faire en premier sur la tablette
-
-1. Importer 2-3 musiques (onglet *Bibliothèque*) et 1 audio court en tant qu'**annonce**.
-2. Onglet *Annonces* → « Nouvelle règle » → 15 min, fondu 2 s → Enregistrer. « Tester maintenant » doit : fondu, annonce, reprise.
-3. Onglet *Mode radio* → choisir la source → activer. Verrouiller l'écran et laisser tourner 1 h.
-4. Relire le **journal** du mode radio : chaque annonce doit y apparaître au bon créneau (:00, :15, :30, :45).
-5. Si une annonce manque écran éteint : *Mode radio* → « Ouvrir les réglages batterie » et autoriser l'app à ignorer l'optimisation.
-
-Points à vérifier (non testables sans appareil) :
-- la reprise de la musique après l'annonce quand les deux lecteurs demandent le focus audio (`interruptionMode: 'doNotMix'`) ;
-- la survie des timers JavaScript écran éteint (service de premier plan d'`expo-audio`) ;
-- le maintien de la session audio par la piste silencieuse quand la musique est en pause.
-
-Si les timers JS ne tiennent pas, la suite prévue est une alarme exacte native (`SCHEDULE_EXACT_ALARM`).
-
-## Architecture
 
 ```
 src/
-  app/        écrans (expo-router) : Bibliothèque, Playlists, Lecteur, Annonces, Mode radio
-  core/       logique pure, sans dépendance native, testée : file d'attente, planificateur, fondus
-  audio/      moteur de lecture (expo-audio) : musique + annonces + mode radio
+  app/        écrans : Radio, Horaires, Musique, Publicités, Diagnostic
+  core/       logique pure et testée : program.ts (horaires, créneaux, rotation), queue.ts, fade.ts
+  audio/      moteur de lecture (expo-audio)
   db/         SQLite : migrations versionnées + accès aux données
-  sources/    sources musicales interchangeables (MusicSource) : fichiers locaux aujourd'hui
+  sources/    sources musicales interchangeables : fichiers locaux aujourd'hui
   ui/         thème et composants
 ```
 
-Trois fondations pour faire évoluer l'application sans la réécrire :
-
-1. **Sources interchangeables** (`src/sources/MusicSource.ts`) : le lecteur ne sait pas d'où vient un titre.
-   Un futur catalogue cloud ou un service tiers sera un module de plus.
-2. **Données synchronisables** : chaque ligne a un UUID, `updated_at` et `deleted_at` (suppression logique),
-   et les migrations sont versionnées (`PRAGMA user_version`). Plusieurs appareils pourront fusionner leurs données.
-3. **Annonces calées sur l'horloge** : deux appareils produisent le même planning, ce qui rend un relais transparent.
-
-## Feuille de route
-
-- **V1.5** compte + synchro des playlists, règles et réglages vers un 2e appareil (tablette/téléphone).
-- **V2** catalogue libre de droit (stockage Cloudflare R2, ~6 Go pour 1000 titres en 192 kbps), outil d'import
-  (conversion, normalisation du volume, licences), écran Catalogue, page de crédits.
-- **V2.5** signal de vie + écran *Relais* manuel (prendre / rendre la main), alerte de batterie faible.
-- **V3** sources supplémentaires, statistiques de diffusion.
-
-Les licences des titres (CC BY, NC, domaine public…) seront stockées par titre ; usage privé uniquement.
+L'état réel du projet, les décisions et ce qui n'est pas vérifié sont dans [HANDOFF.md](HANDOFF.md).

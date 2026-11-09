@@ -2,12 +2,12 @@
   "expo": {
     "name": "Appli Musique",
     "slug": "appli-musique",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "scheme": "applimusique",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#0b0f14",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F6FB",
     "android": {
       "package": "com.applimusique.app",
       "adaptiveIcon": {

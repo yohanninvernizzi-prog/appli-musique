@@ -1,17 +1,18 @@
 import { randomUUID } from 'expo-crypto';
-import type { AnnouncementRule, PlayMode, Playlist, RepeatMode, Track, TrackKind } from '../core/types';
+import type { OpeningSlot } from '../core/program';
+import type { PlayMode, Playlist, RepeatMode, Track, TrackKind } from '../core/types';
 import { getDb } from './database';
 
 const now = () => Date.now();
 
 type TrackRow = {
   id: string; title: string; artist: string | null; album: string | null; duration_ms: number | null;
-  file_uri: string; source: string; source_ref: string | null; license: string | null; kind: string;
+  file_uri: string; source: string; source_ref: string | null; license: string | null; kind: string; enabled: number;
 };
 
 const toTrack = (r: TrackRow): Track => ({
   id: r.id, title: r.title, artist: r.artist, album: r.album, durationMs: r.duration_ms,
-  fileUri: r.file_uri, source: r.source, sourceRef: r.source_ref, license: r.license, kind: r.kind as TrackKind,
+  fileUri: r.file_uri, source: r.source, sourceRef: r.source_ref, license: r.license, kind: r.kind as TrackKind, enabled: !!r.enabled,
 });
 
 export async function listTracks(kind?: TrackKind): Promise<Track[]> {
@@ -36,21 +37,21 @@ export async function insertTrack(t: Omit<Track, 'id'>): Promise<Track> {
   const id = randomUUID();
   const ts = now();
   await db.runAsync(
-    `INSERT INTO tracks (id,title,artist,album,duration_ms,file_uri,source,source_ref,license,kind,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    id, t.title, t.artist, t.album, t.durationMs, t.fileUri, t.source, t.sourceRef, t.license, t.kind, ts, ts,
+    `INSERT INTO tracks (id,title,artist,album,duration_ms,file_uri,source,source_ref,license,kind,enabled,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    id, t.title, t.artist, t.album, t.durationMs, t.fileUri, t.source, t.sourceRef, t.license, t.kind, t.enabled ? 1 : 0, ts, ts,
   );
   return { ...t, id };
 }
 
-export async function updateTrack(id: string, patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'kind' | 'license' | 'durationMs'>>): Promise<void> {
+export async function updateTrack(id: string, patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'kind' | 'license' | 'durationMs' | 'enabled'>>): Promise<void> {
   const db = await getDb();
   const cur = await db.getFirstAsync<TrackRow>('SELECT * FROM tracks WHERE id = ?', id);
   if (!cur) return;
   const next = { ...toTrack(cur), ...patch };
   await db.runAsync(
-    'UPDATE tracks SET title=?, artist=?, album=?, kind=?, license=?, duration_ms=?, updated_at=? WHERE id=?',
-    next.title, next.artist, next.album, next.kind, next.license, next.durationMs, now(), id,
+    'UPDATE tracks SET title=?, artist=?, album=?, kind=?, license=?, duration_ms=?, enabled=?, updated_at=? WHERE id=?',
+    next.title, next.artist, next.album, next.kind, next.license, next.durationMs, next.enabled ? 1 : 0, now(), id,
   );
 }
 
@@ -59,7 +60,6 @@ export async function deleteTrack(id: string): Promise<void> {
   const ts = now();
   await db.runAsync('UPDATE tracks SET deleted_at=?, updated_at=? WHERE id=?', ts, ts, id);
   await db.runAsync('UPDATE playlist_tracks SET deleted_at=?, updated_at=? WHERE track_id=? AND deleted_at IS NULL', ts, ts, id);
-  await db.runAsync('UPDATE announcement_rules SET enabled=0, updated_at=? WHERE track_id=? AND deleted_at IS NULL', ts, id);
 }
 
 // ---- Playlists ----
@@ -138,47 +138,58 @@ export async function movePlaylistTrack(playlistId: string, trackId: string, del
   });
 }
 
-// ---- Annonces ----
+// ---- Horaires d'ouverture ----
 
-type RuleRow = {
-  id: string; name: string; track_id: string; interval_min: number; start_min: number; end_min: number;
-  days_mask: number; fade_ms: number; volume: number; enabled: number; play_when_idle: number;
-};
-const toRule = (r: RuleRow): AnnouncementRule => ({
-  id: r.id, name: r.name, trackId: r.track_id, intervalMin: r.interval_min, startMin: r.start_min, endMin: r.end_min,
-  daysMask: r.days_mask, fadeMs: r.fade_ms, volume: r.volume, enabled: !!r.enabled, playWhenIdle: !!r.play_when_idle,
-});
+type SlotRow = { id: string; day: number; start_min: number; end_min: number };
 
-export async function listRules(): Promise<AnnouncementRule[]> {
+export async function listSlots(): Promise<OpeningSlot[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<RuleRow>('SELECT * FROM announcement_rules WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE');
-  return rows.map(toRule);
+  const rows = await db.getAllAsync<SlotRow>('SELECT * FROM opening_slots WHERE deleted_at IS NULL ORDER BY day, start_min');
+  return rows.map((r) => ({ id: r.id, day: r.day, startMin: r.start_min, endMin: r.end_min }));
 }
 
-export async function saveRule(rule: Omit<AnnouncementRule, 'id'> & { id?: string }): Promise<AnnouncementRule> {
+export async function saveSlot(slot: Omit<OpeningSlot, 'id'> & { id?: string }): Promise<OpeningSlot> {
   const db = await getDb();
   const ts = now();
-  const id = rule.id ?? randomUUID();
-  const exists = rule.id ? await db.getFirstAsync('SELECT id FROM announcement_rules WHERE id=?', id) : null;
-  if (exists) {
-    await db.runAsync(
-      `UPDATE announcement_rules SET name=?, track_id=?, interval_min=?, start_min=?, end_min=?, days_mask=?, fade_ms=?, volume=?, enabled=?, play_when_idle=?, deleted_at=NULL, updated_at=? WHERE id=?`,
-      rule.name, rule.trackId, rule.intervalMin, rule.startMin, rule.endMin, rule.daysMask, rule.fadeMs, rule.volume, rule.enabled ? 1 : 0, rule.playWhenIdle ? 1 : 0, ts, id,
-    );
-  } else {
-    await db.runAsync(
-      `INSERT INTO announcement_rules (id,name,track_id,interval_min,start_min,end_min,days_mask,fade_ms,volume,enabled,play_when_idle,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      id, rule.name, rule.trackId, rule.intervalMin, rule.startMin, rule.endMin, rule.daysMask, rule.fadeMs, rule.volume, rule.enabled ? 1 : 0, rule.playWhenIdle ? 1 : 0, ts, ts,
-    );
+  if (slot.id) {
+    await db.runAsync('UPDATE opening_slots SET day=?, start_min=?, end_min=?, updated_at=? WHERE id=?', slot.day, slot.startMin, slot.endMin, ts, slot.id);
+    return { ...slot, id: slot.id };
   }
-  return { ...rule, id };
+  const id = randomUUID();
+  await db.runAsync('INSERT INTO opening_slots (id,day,start_min,end_min,updated_at) VALUES (?,?,?,?,?)', id, slot.day, slot.startMin, slot.endMin, ts);
+  return { ...slot, id };
 }
 
-export async function deleteRule(id: string): Promise<void> {
+export async function deleteSlot(id: string): Promise<void> {
   const db = await getDb();
   const ts = now();
-  await db.runAsync('UPDATE announcement_rules SET deleted_at=?, updated_at=? WHERE id=?', ts, ts, id);
+  await db.runAsync('UPDATE opening_slots SET deleted_at=?, updated_at=? WHERE id=?', ts, ts, id);
+}
+
+// ---- Journal ----
+
+export type LogEntry = { at: number; message: string };
+
+export async function appendLog(entry: LogEntry): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('INSERT INTO event_log (at,message) VALUES (?,?)', entry.at, entry.message);
+}
+
+/** Les entrées les plus récentes d'abord. */
+export async function listLog(limit = 300): Promise<LogEntry[]> {
+  const db = await getDb();
+  return db.getAllAsync<LogEntry>('SELECT at, message FROM event_log ORDER BY id DESC LIMIT ?', limit);
+}
+
+/** Ne garde que les `keep` dernières entrées. */
+export async function trimLog(keep = 1000): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM event_log WHERE id <= (SELECT MAX(id) FROM event_log) - ?', keep);
+}
+
+export async function clearLog(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM event_log');
 }
 
 // ---- Réglages ----

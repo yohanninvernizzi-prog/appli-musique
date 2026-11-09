@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "expo": "~57.0.26",
     "expo-audio": "^57.0.5",
     "expo-constants": "^57.0.20",
@@ -22,6 +23,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^58.0.4",
     "typescript": "~6.0.3",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"

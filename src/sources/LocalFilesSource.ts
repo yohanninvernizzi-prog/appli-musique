@@ -52,6 +52,7 @@ export const localFilesSource: MusicSource = {
           sourceRef: asset.name,
           license: null,
           kind,
+          enabled: true,
         }),
       );
     }

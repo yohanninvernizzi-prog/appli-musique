@@ -66,4 +66,21 @@ export const MIGRATIONS: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // v2 : horaires d'ouverture, publicités activables, journal conservé entre deux lancements
+  `
+  CREATE TABLE opening_slots (
+    id TEXT PRIMARY KEY NOT NULL,
+    day INTEGER NOT NULL,
+    start_min INTEGER NOT NULL,
+    end_min INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+  );
+  ALTER TABLE tracks ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+  CREATE TABLE event_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    message TEXT NOT NULL
+  );
+  `,
 ];
