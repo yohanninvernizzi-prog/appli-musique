@@ -2,9 +2,11 @@ import { useState } from "react";
 import {
   addAgent,
   agentLabel,
+  changeAdminPassword,
   deleteTask,
   deleteZone,
   moveZone,
+  REMOTE,
   removeAgent,
   resetDemo,
   saveMoment,
@@ -592,6 +594,7 @@ export function AdminSettings() {
   const [closedDay, setClosedDay] = useState("");
   const [pin, setPin] = useState("");
   const [pinSaved, setPinSaved] = useState(false);
+  const [pinError, setPinError] = useState("");
 
   return (
     <AdminShell tab="reglages" title="Réglages">
@@ -656,50 +659,87 @@ export function AdminSettings() {
         </Field>
       </section>
 
-      <section className="card form">
-        <h2>Code d'accès responsable</h2>
-        <Field label="Nouveau code (4 chiffres)">
-          <input
-            inputMode="numeric"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => {
-              setPin(e.target.value.replace(/\D/g, ""));
-              setPinSaved(false);
+      {REMOTE ? (
+        <section className="card form">
+          <h2>Mot de passe responsable</h2>
+          <Field label="Nouveau mot de passe" hint="8 caractères au minimum.">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setPinSaved(false);
+                setPinError("");
+              }}
+            />
+          </Field>
+          <Btn
+            block
+            kind="secondary"
+            disabled={pin.length < 8}
+            onClick={async () => {
+              const message = await changeAdminPassword(pin);
+              if (message) setPinError(message);
+              else {
+                setPin("");
+                setPinSaved(true);
+              }
             }}
-          />
-        </Field>
-        <Btn
-          block
-          kind="secondary"
-          disabled={!isPin(pin)}
-          onClick={() => {
-            setAdminPin(pin);
-            setPin("");
-            setPinSaved(true);
-          }}
-        >
-          Changer le code
-        </Btn>
-        {pinSaved && <p className="group-done">✓ Code modifié.</p>}
-      </section>
+          >
+            Changer le mot de passe
+          </Btn>
+          {pinSaved && <p className="group-done">✓ Mot de passe modifié.</p>}
+          {pinError && <p className="banner-warn">{pinError}</p>}
+        </section>
+      ) : (
+        <>
+          <section className="card form">
+            <h2>Code d'accès responsable</h2>
+            <Field label="Nouveau code (4 chiffres)">
+              <input
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, ""));
+                  setPinSaved(false);
+                }}
+              />
+            </Field>
+            <Btn
+              block
+              kind="secondary"
+              disabled={!isPin(pin)}
+              onClick={() => {
+                setAdminPin(pin);
+                setPin("");
+                setPinSaved(true);
+              }}
+            >
+              Changer le code
+            </Btn>
+            {pinSaved && <p className="group-done">✓ Code modifié.</p>}
+          </section>
 
-      <section className="card form">
-        <h2>Mode démonstration</h2>
-        <p className="detail-zone">
-          Les données sont enregistrées uniquement sur cet appareil. Elles seront partagées entre les téléphones à
-          l'étape suivante.
-        </p>
-        <ConfirmBtn
-          confirm="Confirmer : tout effacer"
-          onConfirm={() => {
-            resetDemo();
-            go("/", true);
-          }}
-        >
-          Réinitialiser la démonstration
-        </ConfirmBtn>
-      </section>
+          <section className="card form">
+            <h2>Mode démonstration</h2>
+            <p className="detail-zone">
+              Les données sont enregistrées uniquement sur cet appareil : elles ne sont pas partagées entre les
+              téléphones.
+            </p>
+            <ConfirmBtn
+              confirm="Confirmer : tout effacer"
+              onConfirm={() => {
+                resetDemo();
+                go("/", true);
+              }}
+            >
+              Réinitialiser la démonstration
+            </ConfirmBtn>
+          </section>
+        </>
+      )}
     </AdminShell>
   );
 }

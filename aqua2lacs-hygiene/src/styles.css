@@ -464,6 +464,50 @@ p {
   font-weight: 700;
 }
 
+.chip-sync {
+  background: var(--green-soft);
+  color: #0f5c32;
+}
+
+.chip-offline {
+  background: var(--orange-soft);
+  color: #8a3c05;
+  font-weight: 700;
+}
+
+.notice {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 30;
+  max-width: 696px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 14px;
+  background: var(--text);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(3, 45, 66, 0.35);
+}
+
+.notice span {
+  flex: 1;
+}
+
+.notice button {
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 700;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;

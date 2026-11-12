@@ -4,15 +4,17 @@ import {
   agentLabel,
   agentName,
   canEdit,
-  checkAgentPin,
   loginAgent,
   logout,
   markNotDone,
+  refreshAgents,
+  REMOTE,
   sendSheet,
   setCompletionNote,
   undoCompletion,
   useData,
   useSession,
+  useSync,
   validateTask,
 } from "../data/store";
 import { buildChecklist, isClosed, progressOf, teamStreak, type ChecklistItem } from "../domain/checklist";
@@ -27,6 +29,9 @@ import { go } from "../ui/router";
 export function Home() {
   const data = useData();
   const agents = data.agents.filter((a) => a.active);
+  useEffect(() => {
+    void refreshAgents();
+  }, []);
   return (
     <div className="home">
       <img src={logo} alt="Aqua2Lacs, espace aquatique" className="home-logo" />
@@ -61,11 +66,10 @@ export function PinScreen({ agentId }: { agentId: string }) {
   return (
     <Screen title={`Bonjour ${agent.firstName}`} subtitle="Tape ton code à 4 chiffres" onBack={() => go("/", true)}>
       <PinPad
-        onComplete={(pin) => {
-          if (!checkAgentPin(agent.id, pin)) return false;
-          loginAgent(agent.id);
-          go("/jour", true);
-          return true;
+        onComplete={async (pin) => {
+          const error = await loginAgent(agent.id, pin);
+          if (!error) go("/jour", true);
+          return error;
         }}
       />
     </Screen>
@@ -95,6 +99,7 @@ function cheer(ratio: number, total: number): string {
 export function Today() {
   const data = useData();
   const session = useSession();
+  const sync = useSync();
   const day = today();
   const sheet = data.sheets.find((s) => s.id === session.sheetId);
   const staleSheet = !!sheet && sheet.date < day;
@@ -118,7 +123,8 @@ export function Today() {
 
   const keyOf = (i: ChecklistItem) => `${i.task.id}@${i.dueDate}`;
   const progress = progressOf(items);
-  const streak = teamStreak(data, day);
+  // En mode connecté, l'appareil ne connaît qu'une partie de l'historique : la série viendra du serveur.
+  const streak = REMOTE ? 0 : teamStreak(data, day);
   const product = data.settings.productByWeekday[weekdayOf(day) - 1];
   const late = items.filter((i) => i.late);
   const detail = items.find((i) => keyOf(i) === detailKey) ?? null;
@@ -183,6 +189,15 @@ export function Today() {
             </span>
           )}
           {streak >= 2 && <span className="chip chip-streak">🔥 {streak} jours complets d'affilée</span>}
+          {REMOTE && (
+            <span className={`chip ${sync.online && sync.pending === 0 ? "chip-sync" : "chip-offline"}`}>
+              {sync.pending > 0
+                ? `${sync.online ? "Envoi en cours" : "Hors ligne"} · ${sync.pending} en attente`
+                : sync.online
+                  ? "✓ À jour"
+                  : "Hors ligne"}
+            </span>
+          )}
         </div>
       </section>
 
@@ -609,6 +624,7 @@ export function Recap() {
 export function Thanks() {
   const session = useSession();
   const data = useData();
+  const sync = useSync();
   const sheet = data.sheets.find((s) => s.id === session.sheetId);
   const count = data.completions.filter((c) => c.sheetId === sheet?.id && c.status === "done").length;
   const finish = () => {
@@ -620,7 +636,8 @@ export function Thanks() {
       <div className="thanks-check">
         <Icon name="check" size={72} />
       </div>
-      <h1>Fiche envoyée !</h1>
+      <h1>{sync.pending > 0 ? "Fiche enregistrée !" : "Fiche envoyée !"}</h1>
+      {sync.pending > 0 && <p>Pas de réseau pour le moment : elle partira toute seule dès qu'il reviendra.</p>}
       <p>
         {count > 0
           ? `${count} tâche${count > 1 ? "s" : ""} validée${count > 1 ? "s" : ""}. Merci pour ton travail${sheet ? `, ${sheet.agentName.split(" ")[0]}` : ""} !`

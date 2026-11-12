@@ -1,0 +1,55 @@
+name: Publier l'appli Hygiène Aqua2Lacs
+
+# Construit l'appli web du dossier aqua2lacs-hygiene/ et la publie sur GitHub Pages
+# (branche gh-pages). Se lance tout seul à chaque modification de l'appli, ou à la main.
+
+on:
+  push:
+    branches:
+      - claude/exciting-wright-33q67a
+    paths:
+      - "aqua2lacs-hygiene/**"
+      - ".github/workflows/hygiene-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hygiene-pages
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aqua2lacs-hygiene
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aqua2lacs-hygiene/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Construire l'appli
+        run: npm run build
+
+      - name: Publier sur la branche gh-pages
+        run: |
+          cd dist
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publication de l'appli Hygiène Aqua2Lacs (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

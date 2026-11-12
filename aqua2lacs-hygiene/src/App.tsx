@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSession } from "./data/store";
+import { dismissNotice, useSession, useSync } from "./data/store";
 import { AdminDay, AdminHistory, AdminLogin, AdminSheet } from "./screens/admin";
 import { AdminSettings, AdminTaskEdit, AdminTasks, AdminTeam, AdminZones } from "./screens/adminRef";
 import { Home, PinScreen, Recap, Thanks, Today } from "./screens/agent";
@@ -10,7 +10,28 @@ function Redirect({ to }: { to: string }) {
   return null;
 }
 
+/** Message important (action refusée, enregistrement impossible…), affiché par-dessus l'écran. */
+function Notice() {
+  const { notice } = useSync();
+  if (!notice) return null;
+  return (
+    <div className="notice" role="alert">
+      <span>{notice}</span>
+      <button onClick={dismissNotice}>OK</button>
+    </div>
+  );
+}
+
 export function App() {
+  return (
+    <>
+      <Routes />
+      <Notice />
+    </>
+  );
+}
+
+function Routes() {
   const [a, b, c] = useRoute();
   const session = useSession();
 

@@ -1,21 +1,85 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { agentLabel, agentName, cancelOccurrence, loginAdmin, logout, useData } from "../data/store";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  agentLabel,
+  agentName,
+  cancelOccurrence,
+  ensureHistory,
+  loginAdmin,
+  loginAdminRemote,
+  logout,
+  REMOTE,
+  useData,
+  useSync,
+} from "../data/store";
 import { buildChecklist, isClosed, progressOf } from "../domain/checklist";
 import { addDays, formatDayLong, formatDayNumeric, formatDayShort, formatTime, toDay, today } from "../domain/dates";
 import type { AppData, Sheet } from "../domain/types";
-import { ConfirmBtn, Empty, Field, Icon, PinPad, ProgressBar, Screen } from "../ui/components";
+import { Btn, ConfirmBtn, Empty, Field, Icon, PinPad, ProgressBar, Screen } from "../ui/components";
 import { back, go } from "../ui/router";
 
 export function AdminLogin() {
+  const sync = useSync();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!REMOTE) {
+    return (
+      <Screen title="Espace responsable" subtitle="Code d'accès" onBack={() => go("/", true)}>
+        <PinPad
+          onComplete={(pin) => {
+            if (!loginAdmin(pin)) return "Code incorrect, réessaie.";
+            go("/admin/jour", true);
+            return null;
+          }}
+        />
+      </Screen>
+    );
+  }
+
+  const submit = async () => {
+    setBusy(true);
+    setError("");
+    const message = await loginAdminRemote(email.trim(), password);
+    setBusy(false);
+    if (message) setError(message);
+    else go("/admin/jour", true);
+  };
+
   return (
-    <Screen title="Espace responsable" subtitle="Code d'accès" onBack={() => go("/", true)}>
-      <PinPad
-        onComplete={(pin) => {
-          if (!loginAdmin(pin)) return false;
-          go("/admin/jour", true);
-          return true;
-        }}
-      />
+    <Screen title="Espace responsable" subtitle="Connexion" onBack={() => go("/", true)}>
+      {!sync.authReady ? (
+        <Empty>Chargement…</Empty>
+      ) : (
+        <form
+          className="card form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <Field label="E-mail">
+            <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Mot de passe">
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+          {error && (
+            <p className="banner-warn" role="alert">
+              {error}
+            </p>
+          )}
+          <Btn block submit disabled={busy || !email.trim() || !password}>
+            {busy ? "Connexion…" : "Se connecter"}
+          </Btn>
+        </form>
+      )}
     </Screen>
   );
 }
@@ -29,6 +93,7 @@ const TABS: [path: string, label: string][] = [
 ];
 
 export function AdminShell(props: { tab: string; title: string; subtitle?: ReactNode; children: ReactNode }) {
+  const sync = useSync();
   return (
     <Screen
       title={props.title}
@@ -55,6 +120,11 @@ export function AdminShell(props: { tab: string; title: string; subtitle?: React
         </nav>
       }
     >
+      {REMOTE && !sync.online && (
+        <p className="banner-warn" role="status">
+          Pas de réseau : les informations affichées ne sont peut-être pas à jour.
+        </p>
+      )}
       {props.children}
     </Screen>
   );
@@ -228,6 +298,7 @@ export function AdminHistory() {
   const [agentId, setAgentId] = useState("");
   const [zoneId, setZoneId] = useState("");
   const zoneName = data.zones.find((z) => z.id === zoneId)?.name;
+  useEffect(() => ensureHistory(from), [from]);
 
   const sheets = data.sheets
     .filter((s) => s.date >= from && s.date <= to)

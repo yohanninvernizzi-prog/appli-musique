@@ -68,12 +68,14 @@ export function Btn(props: {
   disabled?: boolean;
   small?: boolean;
   block?: boolean;
+  /** Bouton d'envoi d'un formulaire. */
+  submit?: boolean;
 }) {
   const cls = ["btn", `btn-${props.kind ?? "primary"}`, props.small && "btn-small", props.block && "btn-block"]
     .filter(Boolean)
     .join(" ");
   return (
-    <button type="button" className={cls} onClick={props.onClick} disabled={props.disabled}>
+    <button type={props.submit ? "submit" : "button"} className={cls} onClick={props.onClick} disabled={props.disabled}>
       {props.children}
     </button>
   );
@@ -151,21 +153,28 @@ export function Field(props: { label: string; hint?: string; children: ReactNode
   );
 }
 
-/** Pavé numérique pour le code PIN à 4 chiffres. */
-export function PinPad(props: { onComplete: (pin: string) => boolean; length?: number }) {
+/**
+ * Pavé numérique pour le code PIN à 4 chiffres.
+ * onComplete renvoie null si le code est accepté, sinon le message d'erreur à afficher.
+ */
+export function PinPad(props: { onComplete: (pin: string) => string | null | Promise<string | null>; length?: number }) {
   const length = props.length ?? 4;
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const press = (digit: string) => {
-    if (pin.length >= length) return;
+    if (busy || pin.length >= length) return;
     const next = pin + digit;
-    setError(false);
+    setError("");
     setPin(next);
     if (next.length === length) {
-      setTimeout(() => {
-        if (!props.onComplete(next)) {
-          setError(true);
+      setBusy(true);
+      setTimeout(async () => {
+        const message = await props.onComplete(next);
+        setBusy(false);
+        if (message) {
+          setError(message);
           setPin("");
         }
       }, 120);
@@ -180,7 +189,7 @@ export function PinPad(props: { onComplete: (pin: string) => boolean; length?: n
         ))}
       </div>
       <p className="pin-error" role="alert">
-        {error ? "Code incorrect, réessaie." : " "}
+        {error || (busy ? "Vérification…" : "\u00a0")}
       </p>
       <div className="pin-keys">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
@@ -192,7 +201,12 @@ export function PinPad(props: { onComplete: (pin: string) => boolean; length?: n
         <button type="button" className="pin-key" onClick={() => press("0")}>
           0
         </button>
-        <button type="button" className="pin-key pin-del" onClick={() => setPin(pin.slice(0, -1))} aria-label="Effacer">
+        <button
+          type="button"
+          className="pin-key pin-del"
+          onClick={() => !busy && setPin(pin.slice(0, -1))}
+          aria-label="Effacer"
+        >
           ⌫
         </button>
       </div>
