@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { dismissNotice, useSession, useSync } from "./data/store";
 import { AdminDay, AdminHistory, AdminLogin, AdminSheet } from "./screens/admin";
 import { AdminSettings, AdminTaskEdit, AdminTasks, AdminTeam, AdminZones } from "./screens/adminRef";
-import { Home, PinScreen, Recap, Thanks, Today } from "./screens/agent";
+import { Home, ModeScreen, PinScreen, Recap, Thanks, Today } from "./screens/agent";
 import { go, useRoute } from "./ui/router";
 
 function Redirect({ to }: { to: string }) {
@@ -62,6 +62,8 @@ function Routes() {
       return <PinScreen key={b} agentId={b ?? ""} />;
     case "jour":
       return <Today />;
+    case "mode":
+      return <ModeScreen />;
     case "recap":
       return <Recap />;
     case "merci":

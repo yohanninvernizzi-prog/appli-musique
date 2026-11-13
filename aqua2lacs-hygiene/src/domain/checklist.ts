@@ -19,12 +19,12 @@ export interface ChecklistItem {
   cancelled: boolean;
 }
 
-function occurrenceCompletions(data: AppData, taskId: string, dueDate: string): Completion[] {
-  return data.completions.filter((c) => c.taskId === taskId && c.dueDate === dueDate);
+function occurrenceCompletions(data: AppData, taskId: string, dueDate: string, test: boolean): Completion[] {
+  return data.completions.filter((c) => c.taskId === taskId && c.dueDate === dueDate && !!c.test === test);
 }
 
-function buildItem(data: AppData, task: Task, dueDate: string, day: string): ChecklistItem {
-  const comps = occurrenceCompletions(data, task.id, dueDate);
+function buildItem(data: AppData, task: Task, dueDate: string, day: string, test: boolean): ChecklistItem {
+  const comps = occurrenceCompletions(data, task.id, dueDate, test);
   const passCount = Math.max(1, task.passes);
   const passes: (Completion | null)[] = Array.from({ length: passCount }, () => null);
   let notDone: Completion | null = null;
@@ -58,20 +58,21 @@ export function isClosed(data: AppData, day: string): boolean {
 /**
  * Checklist d'un jour : les tâches prévues ce jour-là, plus les tâches périodiques
  * dont la dernière échéance n'a pas été réalisée (affichées « en retard »).
+ * `test` choisit l'univers : les validations réelles, ou celles des profils de test.
  */
-export function buildChecklist(data: AppData, day: string): ChecklistItem[] {
+export function buildChecklist(data: AppData, day: string, test = false): ChecklistItem[] {
   if (isClosed(data, day)) return [];
   const items: ChecklistItem[] = [];
   for (const task of data.tasks) {
     if (isDue(task, day, data.settings)) {
-      const item = buildItem(data, task, day, day);
+      const item = buildItem(data, task, day, day, test);
       if (!item.cancelled) items.push(item);
       continue;
     }
     if (!task.active || !carriesOver(task.recurrence)) continue;
     const prev = previousDue(task, day, data.settings);
     if (!prev) continue;
-    const item = buildItem(data, task, prev, day);
+    const item = buildItem(data, task, prev, day, test);
     if (item.bonus || item.cancelled) continue;
     // En retard tant que ce n'est pas fait ; reste visible le jour du rattrapage.
     const caughtUpToday = item.passes.some((p) => p && p.doneDate === day);

@@ -8,7 +8,12 @@ export interface Zone {
   id: ID;
   name: string;
   order: number;
+  /** Répartition à deux : 1 ou 2 = poste concerné, 0 = zone commune aux deux postes. */
+  post: Post;
 }
+
+/** Poste de travail quand les agents sont deux (0 = aucun / commun). */
+export type Post = 0 | 1 | 2;
 
 export interface Moment {
   id: ID;
@@ -49,9 +54,14 @@ export interface Task {
   passes: number;
   recurrence: Recurrence;
   period: Period;
+  /** Visible par les agents. Faux pour un brouillon ou une tâche désactivée. */
   active: boolean;
+  /** Brouillon : tâche en préparation, jamais encore publiée. */
+  draft: boolean;
+  /** Essentielle : à faire même quand l'agent travaille seul. */
+  essential: boolean;
   order: number;
-  /** Jour de création : aucune occurrence n'est due avant. */
+  /** « Active à partir du » : aucune occurrence n'est due avant ce jour. */
   createdOn: string;
 }
 
@@ -62,6 +72,8 @@ export interface Agent {
   /** Empreinte du code PIN (jamais le code en clair). */
   pinHash: string;
   active: boolean;
+  /** Profil de test ou de démonstration : ses fiches restent à part et ne comptent pas. */
+  test: boolean;
 }
 
 export type CompletionStatus = "done" | "not_done" | "cancelled";
@@ -94,6 +106,8 @@ export interface Completion {
   photos: string[];
   /** Fiche à laquelle la validation est rattachée. */
   sheetId: ID | null;
+  /** Validation faite par un profil de test (bac à sable). */
+  test: boolean;
   /** Copie des libellés au moment de la validation (traçabilité si le référentiel change). */
   snapshot: { taskName: string; zoneName: string; momentName: string };
 }
@@ -122,6 +136,37 @@ export interface Sheet {
   anomaly: boolean;
   /** Tâches de l'équipe encore à faire au moment de l'envoi. */
   remaining: SheetRemainingItem[];
+  /** Organisation choisie par l'agent : seul ou à deux (null tant qu'il n'a pas choisi). */
+  mode: WorkMode | null;
+  /** Poste tenu quand les agents sont deux. */
+  post: Post;
+  /** Fiche d'un profil de test. */
+  test: boolean;
+}
+
+export type WorkMode = "solo" | "duo";
+
+/** Collègue actuellement en service (fiche du jour non envoyée). */
+export interface TeamMember {
+  agentId: ID;
+  agentName: string;
+  mode: WorkMode | null;
+  post: Post;
+}
+
+/** Trace d'une suppression de fiche(s) par le responsable. */
+export interface DeletionLog {
+  id: ID;
+  deletedAt: string;
+  scope: "sheet" | "tests" | "all";
+  agentName: string;
+  day: string;
+  reason: string;
+  /** Nombre de fiches supprimées. */
+  sheetCount: number;
+  /** Nombre de validations supprimées avec. */
+  completionCount: number;
+  test: boolean;
 }
 
 export interface Settings {
@@ -142,4 +187,8 @@ export interface AppData {
   completions: Completion[];
   sheets: Sheet[];
   settings: Settings;
+  /** Collègues en service, vus par l'agent connecté (mode connecté). */
+  team: TeamMember[];
+  /** Journal des suppressions (responsable). */
+  deletions: DeletionLog[];
 }

@@ -3,18 +3,21 @@ import {
   agentLabel,
   agentName,
   cancelOccurrence,
+  deleteSheet,
   ensureHistory,
   loginAdmin,
   loginAdminRemote,
   logout,
   REMOTE,
+  setViewTests,
   useData,
   useSync,
+  useViewTests,
 } from "../data/store";
 import { buildChecklist, isClosed, progressOf } from "../domain/checklist";
 import { addDays, formatDayLong, formatDayNumeric, formatDayShort, formatTime, toDay, today } from "../domain/dates";
 import type { AppData, Sheet } from "../domain/types";
-import { Btn, ConfirmBtn, Empty, Field, Icon, PinPad, ProgressBar, Screen } from "../ui/components";
+import { Btn, ConfirmBtn, Empty, Field, Icon, Modal, PinPad, ProgressBar, Screen, Toggle } from "../ui/components";
 import { back, go } from "../ui/router";
 
 export function AdminLogin() {
@@ -130,6 +133,19 @@ export function AdminShell(props: { tab: string; title: string; subtitle?: React
   );
 }
 
+/** Bascule entre les données réelles et celles des profils de test. */
+function TestSwitch() {
+  const viewTests = useViewTests();
+  return (
+    <div className={viewTests ? "banner-test" : "test-switch"}>
+      <Toggle checked={viewTests} onChange={setViewTests} label="Voir les données de test" />
+    </div>
+  );
+}
+
+const modeLabel = (sheet: Sheet) =>
+  sheet.mode === "duo" ? `à deux · poste ${sheet.post}` : sheet.mode === "solo" ? "seul" : "";
+
 function sheetCounts(data: AppData, sheet: Sheet) {
   const comps = data.completions.filter((c) => c.sheetId === sheet.id);
   return {
@@ -151,6 +167,8 @@ function SheetRow({ data, sheet, showDate }: { data: AppData; sheet: Sheet; show
         </small>
       </span>
       <span className="row-tags">
+        {sheet.test && <em className="tag warn">test</em>}
+        {sheet.mode && <em className="tag">{modeLabel(sheet)}</em>}
         <em className="tag ok">{n.done} faites</em>
         {n.notDone > 0 && <em className="tag warn">{n.notDone} non faites</em>}
         {n.anomalies > 0 && <em className="tag danger">⚠ {n.anomalies}</em>}
@@ -166,16 +184,24 @@ function SheetRow({ data, sheet, showDate }: { data: AppData; sheet: Sheet; show
 export function AdminDay() {
   const data = useData();
   const [day, setDay] = useState(today());
-  const items = useMemo(() => buildChecklist(data, day), [data, day]);
+  const viewTests = useViewTests();
+  const items = useMemo(() => buildChecklist(data, day, viewTests), [data, day, viewTests]);
   const progress = progressOf(items);
-  const sheets = data.sheets.filter((s) => s.date === day).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
-  const taskAnomalies = data.completions.filter((c) => c.doneDate === day && c.anomaly);
+  const sheets = data.sheets
+    .filter((s) => s.date === day && s.test === viewTests)
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const taskAnomalies = data.completions.filter((c) => c.doneDate === day && c.anomaly && c.test === viewTests);
   const sheetAnomalies = sheets.filter((s) => s.anomaly && s.sentAt);
-  const missing = items.filter((i) => !i.bonus && !i.complete);
+  // Les tâches essentielles manquantes d'abord : ce sont elles qui comptent même en effectif réduit.
+  const missing = items
+    .filter((i) => !i.bonus && !i.complete)
+    .sort((a, b) => Number(b.task.essential) - Number(a.task.essential));
+  const missingEssential = missing.filter((i) => i.task.essential).length;
   const isToday = day === today();
 
   return (
     <AdminShell tab="jour" title="Vue du jour" subtitle={formatDayLong(day)}>
+      <TestSwitch />
       <div className="daynav">
         <button className="iconbtn dark" onClick={() => setDay(addDays(day, -1))} aria-label="Jour précédent">
           <Icon name="back" />
@@ -257,11 +283,18 @@ export function AdminDay() {
           <section className="card">
             <h2>{isToday ? "Tâches restantes" : "Tâches non réalisées"}</h2>
             {missing.length === 0 && <Empty>Tout a été fait.</Empty>}
+            {missing.length > 0 && (
+              <p className="detail-zone">
+                Dont {missingEssential} essentielle{missingEssential > 1 ? "s" : ""}. Les autres ne sont pas demandées à
+                un agent seul.
+              </p>
+            )}
             <ul className="recap-list">
               {missing.map((i) => (
                 <li key={`${i.task.id}@${i.dueDate}`}>
                   <span>
                     {i.task.name}
+                    {i.task.essential && <em className="tag danger">essentielle</em>}
                     {i.late && <em className="tag warn">en retard depuis le {formatDayShort(i.dueDate)}</em>}
                     <small>
                       {i.zone?.name} · {i.moment?.name}
@@ -298,10 +331,11 @@ export function AdminHistory() {
   const [agentId, setAgentId] = useState("");
   const [zoneId, setZoneId] = useState("");
   const zoneName = data.zones.find((z) => z.id === zoneId)?.name;
+  const viewTests = useViewTests();
   useEffect(() => ensureHistory(from), [from]);
 
   const sheets = data.sheets
-    .filter((s) => s.date >= from && s.date <= to)
+    .filter((s) => s.date >= from && s.date <= to && s.test === viewTests)
     .filter((s) => !agentId || s.agentId === agentId)
     .filter(
       (s) => !zoneName || data.completions.some((c) => c.sheetId === s.id && c.snapshot.zoneName === zoneName),
@@ -310,6 +344,7 @@ export function AdminHistory() {
 
   return (
     <AdminShell tab="historique" title="Historique" subtitle={`${sheets.length} fiche${sheets.length > 1 ? "s" : ""}`}>
+      <TestSwitch />
       <section className="card filters">
         <Field label="Du">
           <input type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} />
@@ -356,6 +391,8 @@ export function AdminHistory() {
 export function AdminSheet({ id }: { id: string }) {
   const data = useData();
   const sheet = data.sheets.find((s) => s.id === id);
+  const [deleting, setDeleting] = useState(false);
+  const [reason, setReason] = useState("");
   if (!sheet) {
     return (
       <Screen title="Fiche introuvable" onBack={() => back("/admin/jour")}>
@@ -381,7 +418,14 @@ export function AdminSheet({ id }: { id: string }) {
           </dd>
           <dt>État</dt>
           <dd>{sheet.sentAt ? "🔒 Verrouillée" : "En cours"}</dd>
+          {sheet.mode && (
+            <>
+              <dt>Organisation</dt>
+              <dd>{sheet.mode === "duo" ? `À deux · poste ${sheet.post}` : "Seul (tâches essentielles)"}</dd>
+            </>
+          )}
         </dl>
+        {sheet.test && <p className="banner-test">Fiche de test : elle ne compte pas dans le suivi.</p>}
         {sheet.comment && (
           <p className={sheet.anomaly ? "banner-warn" : "detail-text"}>
             {sheet.anomaly ? "⚠ Anomalie : " : "Commentaire : "}« {sheet.comment} »
@@ -464,6 +508,32 @@ export function AdminSheet({ id }: { id: string }) {
             {sheet.agentName} · {formatTime(sheet.sentAt)}
           </p>
         </section>
+      )}
+      <ConfirmBtn confirm="Oui, supprimer cette fiche…" onConfirm={() => setDeleting(true)}>
+        Supprimer cette fiche
+      </ConfirmBtn>
+
+      {deleting && (
+        <Modal title="Supprimer la fiche" onClose={() => setDeleting(false)}>
+          <p className="detail-text">
+            La fiche de {sheet.agentName} et ses {comps.length} validation{comps.length > 1 ? "s" : ""} seront effacées.
+            Les tâches concernées redeviendront « non faites ». La suppression sera notée dans le journal.
+          </p>
+          <Field label="Motif (obligatoire)">
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex. : fiche d'essai" />
+          </Field>
+          <Btn
+            block
+            kind="danger"
+            disabled={reason.trim().length < 3}
+            onClick={() => {
+              deleteSheet(sheet.id, reason.trim());
+              back("/admin/jour");
+            }}
+          >
+            Supprimer définitivement
+          </Btn>
+        </Modal>
       )}
     </Screen>
   );

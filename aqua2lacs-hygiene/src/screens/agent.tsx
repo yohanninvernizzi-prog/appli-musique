@@ -4,6 +4,7 @@ import {
   agentLabel,
   agentName,
   canEdit,
+  getTeam,
   loginAgent,
   logout,
   markNotDone,
@@ -11,6 +12,7 @@ import {
   REMOTE,
   sendSheet,
   setCompletionNote,
+  setSheetMode,
   undoCompletion,
   useData,
   useSession,
@@ -20,7 +22,7 @@ import {
 import { buildChecklist, isClosed, progressOf, teamStreak, type ChecklistItem } from "../domain/checklist";
 import { formatDayLong, formatDayShort, formatTime, today, weekdayOf } from "../domain/dates";
 import { describeRecurrence } from "../domain/recurrence";
-import { NOT_DONE_REASONS, type AppData, type Completion, type Moment } from "../domain/types";
+import { NOT_DONE_REASONS, type AppData, type Completion, type Moment, type Post } from "../domain/types";
 import { Btn, Empty, Field, Icon, Modal, PinPad, ProgressBar, Screen, SignaturePad, Toggle } from "../ui/components";
 import { go } from "../ui/router";
 
@@ -42,6 +44,7 @@ export function Home() {
           <button key={a.id} className="agent-tile" onClick={() => go(`/pin/${a.id}`)}>
             <span className="avatar">{a.firstName.trim()[0]?.toUpperCase()}</span>
             <span>{agentLabel(a)}</span>
+            {a.test && <em className="tag warn">test</em>}
           </button>
         ))}
       </div>
@@ -103,26 +106,47 @@ export function Today() {
   const day = today();
   const sheet = data.sheets.find((s) => s.id === session.sheetId);
   const staleSheet = !!sheet && sheet.date < day;
+  const needsMode = !!sheet && !sheet.mode;
+  const test = !!sheet?.test;
 
   useEffect(() => {
     if (!session.agentId || !sheet || sheet.sentAt) go("/", true);
     else if (staleSheet) go("/recap", true);
-  }, [session.agentId, sheet, staleSheet]);
+    else if (needsMode) go("/mode", true);
+  }, [session.agentId, sheet, staleSheet, needsMode]);
 
-  const items = useMemo(() => buildChecklist(data, day), [data, day]);
+  const items = useMemo(() => buildChecklist(data, day, test), [data, day, test]);
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const id = currentMomentId(data.moments);
     return id ? { [id]: true } : {};
   });
+  const [openSide, setOpenSide] = useState<Record<string, boolean>>({});
   const [detailKey, setDetailKey] = useState<string | null>(null);
   // Tâches validées à l'instant : elles restent affichées un court moment, le temps de voir l'animation.
   const [popped, setPopped] = useState<string[]>([]);
 
-  if (!session.agentId || !sheet || sheet.sentAt || staleSheet) return null;
+  if (!session.agentId || !sheet || sheet.sentAt || staleSheet || needsMode) return null;
 
   const keyOf = (i: ChecklistItem) => `${i.task.id}@${i.dueDate}`;
-  const progress = progressOf(items);
+  const solo = sheet.mode === "solo";
+  const team = getTeam(data, session);
+  const otherPost = sheet.post === 1 ? 2 : 1;
+  const partner = team.find((t) => t.mode === "duo" && t.post === otherPost);
+  /**
+   * Tâches « de côté » : seul, celles qui ne sont pas essentielles ; à deux, celles du poste du collègue.
+   * Elles restent accessibles mais ne comptent pas dans la progression de l'agent.
+   */
+  const isSide = (i: ChecklistItem) => {
+    if (i.late || i.bonus) return false;
+    if (solo) return !i.task.essential;
+    const zonePost = i.zone?.post ?? 0;
+    return zonePost !== 0 && zonePost !== sheet.post;
+  };
+  const sideLabel = solo
+    ? "Si le temps le permet"
+    : `Poste ${otherPost}${partner ? ` · ${partner.agentName}` : ""}`;
+  const progress = progressOf(items.filter((i) => !isSide(i)));
   // En mode connecté, l'appareil ne connaît qu'une partie de l'historique : la série viendra du serveur.
   const streak = REMOTE ? 0 : teamStreak(data, day);
   const product = data.settings.productByWeekday[weekdayOf(day) - 1];
@@ -152,6 +176,22 @@ export function Today() {
     />
   );
 
+  /** Liste de tâches avec un intertitre à chaque changement de zone. */
+  const byZone = (list: ChecklistItem[]) => {
+    let lastZone = "";
+    return list.map((item) => {
+      const zoneName = item.zone?.name ?? "Autre";
+      const header = zoneName !== lastZone ? <h3 className="zone-title">{zoneName}</h3> : null;
+      lastZone = zoneName;
+      return (
+        <div key={keyOf(item)}>
+          {header}
+          {card(item)}
+        </div>
+      );
+    });
+  };
+
   return (
     <Screen
       title={`Bonjour ${me?.firstName ?? ""}`}
@@ -174,6 +214,10 @@ export function Today() {
         </Btn>
       }
     >
+      {test && (
+        <p className="banner-test">Profil de test : ce que tu valides ici ne compte pas et reste à part.</p>
+      )}
+
       <section className="hero">
         <div className="hero-row">
           <strong className="hero-count">
@@ -183,6 +227,9 @@ export function Today() {
         </div>
         <ProgressBar ratio={progress.ratio} />
         <div className="hero-chips">
+          <button className="chip chip-mode" onClick={() => go("/mode")}>
+            {solo ? "Seul : tâches essentielles" : `À deux : poste ${sheet.post}`} · <u>changer</u>
+          </button>
           {product && (
             <span className="chip chip-product">
               Produit du jour : <strong>{product}</strong>
@@ -200,6 +247,17 @@ export function Today() {
           )}
         </div>
       </section>
+
+      {solo && team.length > 0 && (
+        <div className="banner-info">
+          <span>
+            {team.map((t) => t.agentName).join(" et ")} {team.length > 1 ? "sont" : "est"} aussi en service.
+          </span>
+          <Btn small onClick={() => go("/mode")}>
+            Passer à deux
+          </Btn>
+        </div>
+      )}
 
       {isClosed(data, day) && <Empty>Centre fermé aujourd'hui : aucune tâche prévue.</Empty>}
 
@@ -224,10 +282,13 @@ export function Today() {
       {moments.map((m) => {
         const all = items.filter((i) => !i.late && i.task.momentId === m.id);
         if (all.length === 0) return null;
-        const shown = all.filter(visible);
-        const done = all.filter((i) => i.complete).length;
+        const main = all.filter((i) => !isSide(i));
+        const side = all.filter(isSide);
+        const shown = main.filter(visible);
+        const done = main.filter((i) => i.complete).length;
+        const sideDone = side.filter((i) => i.complete).length;
         const isOpen = !!open[m.id];
-        let lastZone = "";
+        const sideOpen = !!openSide[m.id];
         return (
           <section key={m.id} className={`group${m.bonus ? " group-bonus" : ""}`}>
             <button className="group-title" onClick={() => setOpen({ ...open, [m.id]: !isOpen })} aria-expanded={isOpen}>
@@ -235,32 +296,103 @@ export function Today() {
                 {m.name}
                 {m.bonus && <small> · facultatif</small>}
               </span>
-              <span className={`group-count${done === all.length ? " full" : ""}`}>
-                {done}/{all.length}
+              <span className={`group-count${done === main.length ? " full" : ""}`}>
+                {done}/{main.length}
               </span>
               <Icon name={isOpen ? "up" : "down"} size={20} />
             </button>
-            {isOpen &&
-              (shown.length === 0 ? (
-                <p className="group-done">✓ Tout est fait ici.</p>
-              ) : (
-                shown.map((item) => {
-                  const zoneName = item.zone?.name ?? "Autre";
-                  const header = zoneName !== lastZone ? <h3 className="zone-title">{zoneName}</h3> : null;
-                  lastZone = zoneName;
-                  return (
-                    <div key={keyOf(item)}>
-                      {header}
-                      {card(item)}
-                    </div>
-                  );
-                })
-              ))}
+            {isOpen && main.length > 0 && shown.length === 0 && <p className="group-done">✓ Tout est fait ici.</p>}
+            {isOpen && byZone(shown)}
+            {isOpen && side.length > 0 && (
+              <>
+                <button
+                  className="side-title"
+                  onClick={() => setOpenSide({ ...openSide, [m.id]: !sideOpen })}
+                  aria-expanded={sideOpen}
+                >
+                  <span className="group-name">{sideLabel}</span>
+                  <span>
+                    {sideDone}/{side.length}
+                  </span>
+                  <Icon name={sideOpen ? "up" : "down"} size={18} />
+                </button>
+                {sideOpen && byZone(side.filter(visible))}
+              </>
+            )}
           </section>
         );
       })}
 
       {detail && <TaskDetail item={detail} data={data} onClose={() => setDetailKey(null)} />}
+    </Screen>
+  );
+}
+
+// ───────── Seul ou à deux ─────────
+
+export function ModeScreen() {
+  const data = useData();
+  const session = useSession();
+  const sheet = data.sheets.find((s) => s.id === session.sheetId);
+  const [duo, setDuo] = useState(false);
+
+  useEffect(() => {
+    if (!session.agentId || !sheet || sheet.sentAt) go("/", true);
+  }, [session.agentId, sheet]);
+  if (!session.agentId || !sheet || sheet.sentAt) return null;
+
+  const team = getTeam(data, session);
+  const zones = [...data.zones].sort((a, b) => a.order - b.order);
+  const choose = (mode: "solo" | "duo", post: Post) => {
+    setSheetMode(mode, post);
+    go("/jour", true);
+  };
+  const leave = () => {
+    if (duo) setDuo(false);
+    else if (sheet.mode) go("/jour", true);
+    else {
+      logout();
+      go("/", true);
+    }
+  };
+
+  return (
+    <Screen title={duo ? "Quel poste prends-tu ?" : "Comment travailles-tu ?"} onBack={leave}>
+      {team.length > 0 && (
+        <p className="banner-info">
+          <span>
+            {team.map((t) => t.agentName).join(" et ")} {team.length > 1 ? "sont" : "est"} déjà en service.
+          </span>
+        </p>
+      )}
+      {!duo ? (
+        <div className="choices">
+          <button className="choice" onClick={() => choose("solo", 0)}>
+            <strong>Je suis seul</strong>
+            <span>Seules les tâches essentielles te sont demandées. Le reste, si le temps le permet.</span>
+          </button>
+          <button className="choice" onClick={() => setDuo(true)}>
+            <strong>Nous sommes deux</strong>
+            <span>Toutes les tâches sont à faire, réparties en deux postes.</span>
+          </button>
+        </div>
+      ) : (
+        <div className="choices">
+          {([1, 2] as const).map((p) => {
+            const holder = team.find((t) => t.mode === "duo" && t.post === p);
+            const names = zones.filter((z) => z.post === p).map((z) => z.name);
+            return (
+              <button key={p} className="choice" onClick={() => choose("duo", p)}>
+                <strong>
+                  Poste {p}
+                  {holder && <em className="tag warn">déjà pris par {holder.agentName}</em>}
+                </strong>
+                <span>{names.length > 0 ? names.join(" · ") : "Aucune zone attribuée pour l'instant."}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </Screen>
   );
 }
@@ -483,7 +615,7 @@ export function Recap() {
   const notDone = mine.filter((c) => c.status === "not_done");
   const caughtUp = done.filter((c) => c.dueDate < c.doneDate);
   const anomalies = mine.filter((c) => c.anomaly);
-  const remaining = buildChecklist(data, sheet.date).filter((i) => !i.bonus && !i.complete);
+  const remaining = buildChecklist(data, sheet.date, sheet.test).filter((i) => !i.bonus && !i.complete);
   const stale = sheet.date < today();
   const ready = useInitials ? initials.trim().length >= 2 : signature !== "";
 

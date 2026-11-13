@@ -249,11 +249,44 @@ const TASKS: SeedTask[] = [
   ["fit", "ferm", "Vitres de la salle fitness", "Nettoyage des vitres de la salle fitness.", { rec: FIRST_SATURDAY }],
 ];
 
+/** Présélection des tâches essentielles (à faire même seul). À ajuster par le responsable. */
+export const ESSENTIAL_NAMES = new Set([
+  "Accueil : changer tous les sacs poubelles",
+  "Autolaveuse entrée, sanitaire et déchaussage",
+  "Sanitaire accueil",
+  "Vestiaires fitness",
+  "Vestiaires généraux",
+  "Vestiaires scolaires + couloir",
+  "Sanitaires H/F/BB",
+  "Douches : sols, colonnes, murs",
+  "Robot du bassin",
+  "Tour des plages et poubelles",
+  "Mise en service du robot wellness",
+  "Accueil : passage de propreté",
+  "Sanitaire accueil : contrôle",
+  "Vestiaires : passage de propreté",
+  "Sanitaires H/F/BB : passage de propreté",
+  "Douches : passage de propreté",
+  "Plage wellness",
+  "Hammam",
+  "Sauna",
+  "Machine rincée et rechargée",
+  "Vidange et nettoyage de la pataugeoire",
+  "Vidange et désinfection du jacuzzi",
+]);
+
+/** Répartition à deux par défaut : poste 1 = accueil et vestiaires, poste 2 = bassins et bien-être. */
+export const ZONE_POSTS: Record<string, 0 | 1 | 2> = {
+  acc: 1, sanacc: 1, dech: 1, vest: 1, cas: 1, san: 1, dou: 1, scol: 1, perso: 1, fit: 1,
+  bas: 2, tob: 2, well: 2, ham: 2, ann: 2, ext: 2,
+  mach: 0,
+};
+
 export const DEMO_AGENT_PIN = "1234";
 export const DEMO_ADMIN_PIN = "0000";
 
 export function seedData(): AppData {
-  const zones: Zone[] = ZONES.map(([id, name], order) => ({ id, name, order }));
+  const zones: Zone[] = ZONES.map(([id, name], order) => ({ id, name, order, post: ZONE_POSTS[id] ?? 0 }));
   const tasks: Task[] = TASKS.map(([zoneId, momentId, name, description, o = {}], i) => ({
     id: `t${i + 1}`,
     name,
@@ -268,6 +301,8 @@ export function seedData(): AppData {
     recurrence: o.rec ?? DAILY,
     period: "all",
     active: true,
+    draft: false,
+    essential: ESSENTIAL_NAMES.has(name),
     order: i,
     createdOn: "2026-01-01",
   }));
@@ -277,8 +312,8 @@ export function seedData(): AppData {
     moments: MOMENTS,
     tasks,
     agents: [
-      { id: "demo1", firstName: "Camille", lastName: "Démo", pinHash: hashPin(DEMO_AGENT_PIN), active: true },
-      { id: "demo2", firstName: "Alex", lastName: "Essai", pinHash: hashPin(DEMO_AGENT_PIN), active: true },
+      { id: "demo1", firstName: "Camille", lastName: "Démo", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },
+      { id: "demo2", firstName: "Alex", lastName: "Essai", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },
     ],
     completions: [],
     sheets: [],
@@ -297,5 +332,7 @@ export function seedData(): AppData {
       adminPinHash: hashPin(DEMO_ADMIN_PIN),
       notifyEmail: "",
     },
+    team: [],
+    deletions: [],
   };
 }

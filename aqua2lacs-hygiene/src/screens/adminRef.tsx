@@ -18,10 +18,11 @@ import {
   updateAgent,
   updateSettings,
   useData,
+  wipeSheets,
 } from "../data/store";
-import { formatDayLong, today, WEEKDAY_NAMES, WEEKDAY_SHORT } from "../domain/dates";
+import { formatDayLong, formatDayNumeric, formatTime, toDay, today, WEEKDAY_NAMES, WEEKDAY_SHORT } from "../domain/dates";
 import { describeRecurrence } from "../domain/recurrence";
-import type { Period, Recurrence, Task, Weekday } from "../domain/types";
+import type { Period, Post, Recurrence, Task, Weekday } from "../domain/types";
 import { Btn, ConfirmBtn, Empty, Field, Icon, Modal, Screen, Toggle } from "../ui/components";
 import { back, go } from "../ui/router";
 import { AdminShell } from "./admin";
@@ -32,9 +33,12 @@ export function AdminTasks() {
   const data = useData();
   const [zoneId, setZoneId] = useState("");
   const [query, setQuery] = useState("");
+  const [state, setState] = useState("");
   const zones = [...data.zones].sort((a, b) => a.order - b.order);
   const q = query.trim().toLowerCase();
+  const drafts = data.tasks.filter((t) => t.draft).length;
   const tasks = data.tasks
+    .filter((t) => !state || taskState(t) === state)
     .filter((t) => !zoneId || t.zoneId === zoneId)
     .filter((t) => !q || t.name.toLowerCase().includes(q))
     .sort((a, b) => a.order - b.order);
@@ -61,6 +65,14 @@ export function AdminTasks() {
             ))}
           </select>
         </Field>
+        <Field label="État">
+          <select value={state} onChange={(e) => setState(e.target.value)}>
+            <option value="">Tous</option>
+            <option value="active">Actives</option>
+            <option value="draft">Brouillons{drafts ? ` (${drafts})` : ""}</option>
+            <option value="disabled">Désactivées</option>
+          </select>
+        </Field>
         <Field label="Recherche">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom de la tâche" />
         </Field>
@@ -82,8 +94,13 @@ export function AdminTasks() {
                   <small>
                     {momentName(t.momentId)} · {describeRecurrence(t.recurrence)}
                     {t.passes > 1 ? ` · ${t.passes} passages` : ""}
-                    {t.active ? "" : " · désactivée"}
                   </small>
+                </span>
+                <span className="row-tags">
+                  {t.essential && <em className="tag ok">essentielle</em>}
+                  {t.draft && <em className="tag warn">brouillon</em>}
+                  {!t.draft && !t.active && <em className="tag">désactivée</em>}
+                  {t.active && t.createdOn > today() && <em className="tag">dès le {formatDayNumeric(t.createdOn)}</em>}
                 </span>
                 <Icon name="chevron" size={18} />
               </button>
@@ -95,6 +112,9 @@ export function AdminTasks() {
     </AdminShell>
   );
 }
+
+type TaskState = "draft" | "active" | "disabled";
+const taskState = (t: Task): TaskState => (t.draft ? "draft" : t.active ? "active" : "disabled");
 
 // ───────── Édition d'une tâche ─────────
 
@@ -255,7 +275,10 @@ export function AdminTaskEdit({ id }: { id: string }) {
       passes: 1,
       recurrence: defaultRecurrence(id === "ponctuelle" ? "once" : "daily"),
       period: "all",
-      active: true,
+      // Une nouvelle tâche reste en brouillon tant qu'elle n'est pas publiée.
+      active: false,
+      draft: true,
+      essential: false,
       order: Math.max(0, ...data.tasks.map((t) => t.order)) + 1,
       createdOn: today(),
     };
@@ -270,25 +293,62 @@ export function AdminTaskEdit({ id }: { id: string }) {
   }
   const set = (patch: Partial<Task>) => setTask({ ...task, ...patch });
   const valid = task.name.trim() !== "" && task.zoneId !== "" && task.momentId !== "";
+  const save = (t: Task) => {
+    saveTask({ ...t, name: t.name.trim() });
+    back("/admin/taches");
+  };
+  const current = taskState(task);
+  // Une tâche (re)mise en service ne réclame pas d'échéances passées : elle démarre au plus tôt aujourd'hui.
+  const startDate = (t: Task) => (t.createdOn < today() ? today() : t.createdOn);
+  const setState = (next: TaskState) =>
+    set({
+      draft: next === "draft",
+      active: next === "active",
+      createdOn: next === "active" && current !== "active" ? startDate(task) : task.createdOn,
+    });
 
   return (
     <Screen
       title={isNew ? (id === "ponctuelle" ? "Tâche ponctuelle" : "Nouvelle tâche") : "Modifier la tâche"}
       onBack={() => back("/admin/taches")}
       footer={
-        <Btn
-          block
-          disabled={!valid}
-          onClick={() => {
-            saveTask({ ...task, name: task.name.trim() });
-            back("/admin/taches");
-          }}
-        >
-          Enregistrer
-        </Btn>
+        task.draft ? (
+          <div className="btn-row">
+            <Btn kind="secondary" disabled={!valid} onClick={() => save(task)}>
+              Garder en brouillon
+            </Btn>
+            <Btn kind="success" disabled={!valid} onClick={() => save({ ...task, draft: false, active: true, createdOn: startDate(task) })}>
+              Publier
+            </Btn>
+          </div>
+        ) : (
+          <Btn block disabled={!valid} onClick={() => save(task)}>
+            Enregistrer
+          </Btn>
+        )
       }
     >
       <section className="card form">
+        <div className="segmented three" role="group" aria-label="État de la tâche">
+          {(
+            [
+              ["draft", "Brouillon"],
+              ["active", "Active"],
+              ["disabled", "Désactivée"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} className={current === value ? "on" : ""} aria-pressed={current === value} onClick={() => setState(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="detail-zone">
+          {current === "draft"
+            ? "En préparation : les agents ne la voient pas."
+            : current === "active"
+              ? "Visible par les agents selon sa récurrence."
+              : "Masquée aux agents, conservée pour plus tard."}
+        </p>
         <Field label="Nom de la tâche">
           <input value={task.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ex. : Désincrustant douches wellness" />
         </Field>
@@ -355,8 +415,15 @@ export function AdminTaskEdit({ id }: { id: string }) {
             <option value="vacances">Vacances uniquement</option>
           </select>
         </Field>
+        <Field label="Active à partir du" hint="Avant cette date, la tâche n'est pas demandée aux agents.">
+          <input type="date" value={task.createdOn} onChange={(e) => e.target.value && set({ createdOn: e.target.value })} />
+        </Field>
+        <Toggle
+          checked={task.essential}
+          onChange={(essential) => set({ essential })}
+          label="Essentielle : à faire même quand l'agent est seul"
+        />
         <Toggle checked={task.photoRequired} onChange={(photoRequired) => set({ photoRequired })} label="Photo obligatoire" />
-        <Toggle checked={task.active} onChange={(active) => set({ active })} label="Tâche active" />
       </section>
 
       {!isNew && (
@@ -387,9 +454,22 @@ export function AdminZones() {
     <Screen title="Zones et moments" onBack={() => back("/admin/taches")}>
       <section className="card form">
         <h2>Zones</h2>
+        <p className="detail-zone">
+          Quand les agents sont deux, chaque zone revient au poste 1 ou au poste 2. « Commun » : les deux la voient.
+        </p>
         {zones.map((z, i) => (
-          <div key={z.id} className="edit-row">
+          <div key={z.id} className="edit-row wrap">
             <input value={z.name} onChange={(e) => saveZone({ ...z, name: e.target.value })} aria-label="Nom de la zone" />
+            <select
+              className="post-select"
+              value={z.post}
+              aria-label={`Poste de ${z.name}`}
+              onChange={(e) => saveZone({ ...z, post: Number(e.target.value) as Post })}
+            >
+              <option value={0}>Commun</option>
+              <option value={1}>Poste 1</option>
+              <option value={2}>Poste 2</option>
+            </select>
             <button className="iconbtn dark" disabled={i === 0} onClick={() => moveZone(z.id, -1)} aria-label="Monter">
               <Icon name="up" />
             </button>
@@ -421,7 +501,7 @@ export function AdminZones() {
             small
             disabled={!newZone.trim()}
             onClick={() => {
-              saveZone({ id: uid(), name: newZone.trim(), order: zones.length });
+              saveZone({ id: uid(), name: newZone.trim(), order: zones.length, post: 0 });
               setNewZone("");
             }}
           >
@@ -463,6 +543,7 @@ export function AdminTeam() {
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [pin, setPin] = useState("");
+  const [test, setTest] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const editing = data.agents.find((a) => a.id === editId);
   const [newPin, setNewPin] = useState("");
@@ -487,6 +568,7 @@ export function AdminTeam() {
               </strong>
               <small>Affiché « {agentLabel(a)} »</small>
             </span>
+            {a.test && <em className="tag warn">test</em>}
             <Icon name="chevron" size={18} />
           </button>
         ))}
@@ -510,14 +592,20 @@ export function AdminTeam() {
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
           />
         </Field>
+        <Toggle
+          checked={test}
+          onChange={setTest}
+          label="Profil de test : ses fiches restent à part et ne comptent pas"
+        />
         <Btn
           block
           disabled={!first.trim() || !isPin(pin)}
           onClick={() => {
-            addAgent(first.trim(), last.trim(), pin);
+            addAgent(first.trim(), last.trim(), pin, test);
             setFirst("");
             setLast("");
             setPin("");
+            setTest(false);
           }}
         >
           Créer le profil
@@ -551,6 +639,11 @@ export function AdminTeam() {
               <input value={editing.lastName} onChange={(e) => updateAgent(editing.id, { lastName: e.target.value })} />
             </Field>
           </div>
+          <Toggle
+            checked={editing.test}
+            onChange={(value) => updateAgent(editing.id, { test: value })}
+            label="Profil de test"
+          />
           <Field label="Nouveau code PIN (4 chiffres)">
             <input
               inputMode="numeric"
@@ -595,6 +688,7 @@ export function AdminSettings() {
   const [pin, setPin] = useState("");
   const [pinSaved, setPinSaved] = useState(false);
   const [pinError, setPinError] = useState("");
+  const [wipeReason, setWipeReason] = useState("");
 
   return (
     <AdminShell tab="reglages" title="Réglages">
@@ -657,6 +751,64 @@ export function AdminSettings() {
             <option value="vacances">Vacances</option>
           </select>
         </Field>
+      </section>
+
+      <section className="card form">
+        <h2>Effacer des fiches</h2>
+        <p className="detail-zone">
+          Pour repartir proprement après des essais ou une formation. Chaque suppression est notée dans le journal.
+        </p>
+        <Field label="Motif (obligatoire)">
+          <input value={wipeReason} onChange={(e) => setWipeReason(e.target.value)} placeholder="Ex. : essais avant lancement" />
+        </Field>
+        {wipeReason.trim().length < 3 ? (
+          <p className="detail-zone">Saisissez un motif pour activer les boutons.</p>
+        ) : (
+          <div className="btn-row">
+            <ConfirmBtn
+              confirm="Confirmer : effacer les tests"
+              onConfirm={() => {
+                wipeSheets("tests", wipeReason.trim());
+                setWipeReason("");
+              }}
+            >
+              Effacer les fiches de test
+            </ConfirmBtn>
+            <ConfirmBtn
+              confirm="Confirmer : TOUT effacer"
+              onConfirm={() => {
+                wipeSheets("all", wipeReason.trim());
+                setWipeReason("");
+              }}
+            >
+              Effacer toutes les fiches
+            </ConfirmBtn>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Journal des suppressions</h2>
+        {data.deletions.length === 0 && <Empty>Aucune suppression.</Empty>}
+        <ul className="recap-list">
+          {data.deletions.map((d) => (
+            <li key={d.id}>
+              <span>
+                {d.scope === "sheet"
+                  ? `Fiche de ${d.agentName} du ${formatDayNumeric(d.day)}`
+                  : d.scope === "tests"
+                    ? `Toutes les fiches de test (${d.sheetCount})`
+                    : `Toutes les fiches (${d.sheetCount})`}
+                {d.test && d.scope === "sheet" && <em className="tag warn">test</em>}
+                <small>
+                  Le {formatDayNumeric(toDay(new Date(d.deletedAt)))} à {formatTime(d.deletedAt)} · {d.completionCount}{" "}
+                  validation{d.completionCount > 1 ? "s" : ""}
+                </small>
+                <small>Motif : {d.reason || "non précisé"}</small>
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       {REMOTE ? (

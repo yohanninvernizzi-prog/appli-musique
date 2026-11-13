@@ -3,11 +3,25 @@ import { buildChecklist, type ChecklistItem } from "../domain/checklist";
 import { addDays, today } from "../domain/dates";
 import { hashPin } from "../domain/pin";
 import { seedData } from "../domain/seed";
-import type { Agent, AppData, Completion, Moment, Settings, Sheet, Task, Zone } from "../domain/types";
+import type {
+  Agent,
+  AppData,
+  Completion,
+  DeletionLog,
+  Moment,
+  Post,
+  Settings,
+  Sheet,
+  Task,
+  TeamMember,
+  WorkMode,
+  Zone,
+} from "../domain/types";
 import {
   agentFromRow,
   completionFromRow,
   completionToRow,
+  deletionFromRow,
   fetchAll,
   momentFromRow,
   momentToRow,
@@ -19,6 +33,7 @@ import {
   supabase,
   taskFromRow,
   taskToRow,
+  teamFromRow,
   zoneFromRow,
   zoneToRow,
 } from "./remote";
@@ -35,7 +50,7 @@ import {
 
 export { REMOTE };
 
-const DATA_KEY = REMOTE ? "a2l-hygiene-cache-v1" : "a2l-hygiene-data-v1";
+const DATA_KEY = REMOTE ? "a2l-hygiene-cache-v1" : "a2l-hygiene-data-v2";
 const SESSION_KEY = "a2l-hygiene-session-v1";
 const OUTBOX_KEY = "a2l-hygiene-outbox-v1";
 const PINS_KEY = "a2l-hygiene-pins-v1";
@@ -66,6 +81,20 @@ export function uid(): string {
 
 function emptyData(): AppData {
   return { ...seedData(), zones: [], moments: [], tasks: [], agents: [] };
+}
+
+/** Complète des données enregistrées par une version précédente de l'appli. */
+function normalize(d: AppData): AppData {
+  return {
+    ...d,
+    zones: d.zones.map((z) => ({ ...z, post: z.post ?? 0 })),
+    tasks: d.tasks.map((t) => ({ ...t, essential: !!t.essential, draft: !!t.draft })),
+    agents: d.agents.map((a) => ({ ...a, test: !!a.test })),
+    sheets: d.sheets.map((x) => ({ ...x, mode: x.mode ?? null, post: x.post ?? 0, test: !!x.test })),
+    completions: d.completions.map((c) => ({ ...c, test: !!c.test })),
+    team: d.team ?? [],
+    deletions: d.deletions ?? [],
+  };
 }
 
 // ───────── État ─────────
@@ -100,7 +129,10 @@ export interface SyncStatus {
   authReady: boolean;
 }
 
-let data: AppData = read<AppData>(DATA_KEY) ?? (REMOTE ? emptyData() : seedData());
+const stored = read<AppData>(DATA_KEY);
+let data: AppData = stored ? normalize(stored) : REMOTE ? emptyData() : seedData();
+/** Responsable : regarde-t-il les données réelles ou celles des profils de test ? */
+let viewTests = false;
 let outbox: Queued[] = REMOTE ? (read<Queued[]>(OUTBOX_KEY) ?? []) : [];
 let session: Session = { agentId: null, sheetId: null, admin: false, ...(read<Partial<Session>>(SESSION_KEY) ?? {}) };
 session.admin = false;
@@ -150,6 +182,25 @@ export const useData = (): AppData => useSyncExternalStore(subscribe, getData);
 export const useSession = (): Session => useSyncExternalStore(subscribe, () => session);
 export const useSync = (): SyncStatus => useSyncExternalStore(subscribe, () => status);
 export const dismissNotice = () => setStatus({ notice: "" });
+export const useViewTests = (): boolean => useSyncExternalStore(subscribe, () => viewTests);
+export function setViewTests(value: boolean): void {
+  viewTests = value;
+  emit();
+}
+
+/** Le profil connecté est-il un profil de test ? */
+function sessionIsTest(): boolean {
+  return !!data.agents.find((a) => a.id === session.agentId)?.test;
+}
+
+/** Collègues en service en même temps que l'agent connecté. */
+export function getTeam(d: AppData, s: Session): TeamMember[] {
+  if (REMOTE) return d.team;
+  const me = d.sheets.find((x) => x.id === s.sheetId);
+  return d.sheets
+    .filter((x) => x.date === today() && !x.sentAt && x.agentId !== s.agentId && x.test === !!me?.test)
+    .map((x) => ({ agentId: x.agentId, agentName: x.agentName, mode: x.mode, post: x.post }));
+}
 
 export function agentLabel(a: Pick<Agent, "firstName" | "lastName"> | undefined | null): string {
   if (!a) return "Inconnu";
@@ -212,6 +263,7 @@ async function agentPull(agentId: string, pin: string): Promise<PullResult> {
       ...applyReference(payload, data),
       completions: (payload.completions as Row[]).map(completionFromRow),
       sheets: (payload.sheets as Row[]).map(sheetFromRow),
+      team: ((payload.team as Row[] | null) ?? []).map(teamFromRow),
     });
     persist();
     emit();
@@ -261,8 +313,8 @@ async function adminPull(from = adminLoadedFrom || addDays(today(), -ADMIN_HISTO
       if (error) throw new Error(error.message);
       return rows as Row[];
     };
-    const [zones, moments, tasks, agents, settings] = await Promise.all(
-      ["zones", "moments", "tasks", "agents", "settings"].map(one),
+    const [zones, moments, tasks, agents, settings, deletions] = await Promise.all(
+      ["zones", "moments", "tasks", "agents", "settings", "deletions"].map(one),
     );
     const sheets = await fetchAll((a, b) => supabase!.from("sheets").select("*").gte("day", from).order("id").range(a, b));
     const completions = await fetchAll((a, b) =>
@@ -273,6 +325,8 @@ async function adminPull(from = adminLoadedFrom || addDays(today(), -ADMIN_HISTO
       ...applyReference({ zones, moments, tasks, agents, settings: settings[0] ?? null }, data),
       sheets: sheets.map(sheetFromRow),
       completions: completions.map(completionFromRow),
+      deletions: deletions.map(deletionFromRow).sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)),
+      team: [],
     };
     persist();
     setStatus({ online: true });
@@ -396,6 +450,9 @@ function openSheetFor(agentId: string, pin: string | null) {
     comment: "",
     anomaly: false,
     remaining: [],
+    mode: null,
+    post: 0,
+    test: !!agent?.test,
   };
   setSession({ agentId, sheetId: sheet.id, admin: false }, pin);
   mutate((d) => ({ ...d, sheets: [...d.sheets, sheet] }), [{ kind: "sheet", row: sheetToRow(sheet) }]);
@@ -553,6 +610,7 @@ function baseCompletion(item: ChecklistItem, passIndex: number): Completion {
     anomaly: false,
     photos: [],
     sheetId: session.sheetId,
+    test: session.admin ? viewTests : sessionIsTest(),
     snapshot: {
       taskName: item.task.name,
       zoneName: item.zone?.name ?? "",
@@ -631,7 +689,7 @@ export function sendSheet(
 ): void {
   const sheet = data.sheets.find((s) => s.id === sheetId);
   if (!sheet || sheet.sentAt) return;
-  const remaining = buildChecklist(data, sheet.date)
+  const remaining = buildChecklist(data, sheet.date, sheet.test)
     .filter((i) => !i.bonus && !i.complete)
     .map((i) => ({
       taskName: i.task.name,
@@ -642,6 +700,73 @@ export function sendSheet(
     }));
   const sent: Sheet = { ...sheet, ...input, remaining, sentAt: new Date().toISOString() };
   mutate((d) => ({ ...d, sheets: upsert(d.sheets, sent) }), [{ kind: "sheet", row: sheetToRow(sent) }]);
+}
+
+/** L'agent indique s'il travaille seul ou à deux, et quel poste il tient. */
+export function setSheetMode(mode: WorkMode, post: Post): void {
+  const sheet = data.sheets.find((s) => s.id === session.sheetId);
+  if (!sheet || sheet.sentAt) return;
+  const next: Sheet = { ...sheet, mode, post: mode === "duo" ? post : 0 };
+  mutate((d) => ({ ...d, sheets: upsert(d.sheets, next) }), [{ kind: "sheet", row: sheetToRow(next) }]);
+}
+
+function logDeletion(entry: Omit<DeletionLog, "id" | "deletedAt">): DeletionLog {
+  return { ...entry, id: uid(), deletedAt: new Date().toISOString() };
+}
+
+/** Responsable : supprime une fiche et ses validations. Le motif est conservé dans le journal. */
+export function deleteSheet(id: string, reason: string): void {
+  const sheet = data.sheets.find((s) => s.id === id);
+  if (!session.admin || !sheet) return;
+  const removed = data.completions.filter((c) => c.sheetId === id).length;
+  mutate((d) => ({
+    ...d,
+    sheets: d.sheets.filter((s) => s.id !== id),
+    completions: d.completions.filter((c) => c.sheetId !== id),
+    deletions: [
+      logDeletion({
+        scope: "sheet",
+        agentName: sheet.agentName,
+        day: sheet.date,
+        reason,
+        sheetCount: 1,
+        completionCount: removed,
+        test: sheet.test,
+      }),
+      ...d.deletions,
+    ],
+  }));
+  adminWrite(`sheet:${id}`, () => supabase!.rpc("admin_delete_sheet", { p_id: id, p_reason: reason }));
+}
+
+/** Responsable : efface toutes les fiches de test, ou toutes les fiches. */
+export function wipeSheets(scope: "tests" | "all", reason: string): void {
+  if (!session.admin) return;
+  const gone = (test: boolean) => scope === "all" || test;
+  mutate((d) => ({
+    ...d,
+    sheets: d.sheets.filter((s) => !gone(s.test)),
+    completions: d.completions.filter((c) => !gone(c.test)),
+    deletions: [
+      logDeletion({
+        scope,
+        agentName: "",
+        day: "",
+        reason,
+        sheetCount: d.sheets.filter((s) => gone(s.test)).length,
+        completionCount: d.completions.filter((c) => gone(c.test)).length,
+        test: scope === "tests",
+      }),
+      ...d.deletions,
+    ],
+  }));
+  if (REMOTE && supabase) {
+    void (async () => {
+      const { error } = await supabase.rpc("admin_wipe", { p_scope: scope, p_reason: reason });
+      if (error) setStatus({ notice: "La suppression n'a pas pu être enregistrée. Vérifiez le réseau." });
+      await adminPull();
+    })();
+  }
 }
 
 // ───────── Référentiel (responsable) ─────────
@@ -707,18 +832,19 @@ function pushAgent(agent: Agent, pin: string | null, delay = 0) {
         p_last: agent.lastName,
         p_active: agent.active,
         p_pin: pin,
+        p_test: agent.test,
       }),
     delay,
   );
 }
 
-export function addAgent(firstName: string, lastName: string, pin: string): void {
-  const agent: Agent = { id: uid(), firstName, lastName, pinHash: REMOTE ? "" : hashPin(pin), active: true };
+export function addAgent(firstName: string, lastName: string, pin: string, test = false): void {
+  const agent: Agent = { id: uid(), firstName, lastName, pinHash: REMOTE ? "" : hashPin(pin), active: true, test };
   mutate((d) => ({ ...d, agents: [...d.agents, agent] }));
   pushAgent(agent, pin);
 }
 
-export function updateAgent(id: string, patch: Partial<Pick<Agent, "firstName" | "lastName" | "active">>): void {
+export function updateAgent(id: string, patch: Partial<Pick<Agent, "firstName" | "lastName" | "active" | "test">>): void {
   mutate((d) => ({ ...d, agents: d.agents.map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
   const agent = data.agents.find((a) => a.id === id);
   if (agent) pushAgent(agent, null, 600);

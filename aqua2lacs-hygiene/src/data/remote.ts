@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Agent, Completion, Moment, Settings, Sheet, Task, Zone } from "../domain/types";
+import type { Agent, Completion, DeletionLog, Moment, Post, Settings, Sheet, Task, TeamMember, Zone } from "../domain/types";
 
 /**
  * Connexion à Supabase et conversion entre les objets de l'appli et les lignes de la base.
@@ -17,8 +17,15 @@ export const supabase: SupabaseClient | null = REMOTE
 
 type Row = Record<string, unknown>;
 
-export const zoneToRow = (z: Zone): Row => ({ id: z.id, name: z.name, sort: z.order });
-export const zoneFromRow = (r: Row): Zone => ({ id: String(r.id), name: String(r.name), order: Number(r.sort) });
+const post = (v: unknown): Post => (v === 1 || v === 2 ? v : 0);
+
+export const zoneToRow = (z: Zone): Row => ({ id: z.id, name: z.name, sort: z.order, post: z.post });
+export const zoneFromRow = (r: Row): Zone => ({
+  id: String(r.id),
+  name: String(r.name),
+  order: Number(r.sort),
+  post: post(r.post),
+});
 
 export const momentToRow = (m: Moment): Row => ({
   id: m.id,
@@ -49,6 +56,8 @@ export const taskToRow = (t: Task): Row => ({
   recurrence: t.recurrence,
   period: t.period,
   active: t.active,
+  draft: t.draft,
+  essential: t.essential,
   sort: t.order,
   created_on: t.createdOn,
 });
@@ -66,6 +75,8 @@ export const taskFromRow = (r: Row): Task => ({
   recurrence: r.recurrence as Task["recurrence"],
   period: r.period as Task["period"],
   active: !!r.active,
+  draft: !!r.draft,
+  essential: !!r.essential,
   order: Number(r.sort ?? 0),
   createdOn: String(r.created_on),
 });
@@ -76,6 +87,7 @@ export const agentFromRow = (r: Row): Agent => ({
   lastName: String(r.last_name ?? ""),
   pinHash: "",
   active: !!r.active,
+  test: !!r.is_test,
 });
 
 export const settingsToRow = (s: Settings): Row => ({
@@ -105,6 +117,9 @@ export const sheetToRow = (s: Sheet): Row => ({
   comment: s.comment,
   anomaly: s.anomaly,
   remaining: s.remaining,
+  mode: s.mode,
+  post: s.post,
+  test: s.test,
 });
 export const sheetFromRow = (r: Row): Sheet => ({
   id: String(r.id),
@@ -118,6 +133,28 @@ export const sheetFromRow = (r: Row): Sheet => ({
   comment: String(r.comment ?? ""),
   anomaly: !!r.anomaly,
   remaining: (r.remaining as Sheet["remaining"]) ?? [],
+  mode: r.mode === "solo" || r.mode === "duo" ? r.mode : null,
+  post: post(r.post),
+  test: !!r.test,
+});
+
+export const teamFromRow = (r: Row): TeamMember => ({
+  agentId: String(r.agent_id),
+  agentName: String(r.agent_name),
+  mode: r.mode === "solo" || r.mode === "duo" ? r.mode : null,
+  post: post(r.post),
+});
+
+export const deletionFromRow = (r: Row): DeletionLog => ({
+  id: String(r.id),
+  deletedAt: String(r.deleted_at),
+  scope: r.scope as DeletionLog["scope"],
+  agentName: String(r.agent_name ?? ""),
+  day: r.day ? String(r.day) : "",
+  reason: String(r.reason ?? ""),
+  sheetCount: Number(r.sheet_count ?? 0),
+  completionCount: Number(r.completion_count ?? 0),
+  test: !!r.test,
 });
 
 export const completionToRow = (c: Completion): Row => ({
@@ -135,6 +172,7 @@ export const completionToRow = (c: Completion): Row => ({
   photos: c.photos,
   sheet_id: c.sheetId,
   snapshot: c.snapshot,
+  test: c.test,
 });
 export const completionFromRow = (r: Row): Completion => {
   const snap = (r.snapshot ?? {}) as Partial<Completion["snapshot"]>;
@@ -152,6 +190,7 @@ export const completionFromRow = (r: Row): Completion => {
     anomaly: !!r.anomaly,
     photos: (r.photos as string[]) ?? [],
     sheetId: r.sheet_id ? String(r.sheet_id) : null,
+    test: !!r.test,
     snapshot: {
       taskName: snap.taskName ?? "",
       zoneName: snap.zoneName ?? "",

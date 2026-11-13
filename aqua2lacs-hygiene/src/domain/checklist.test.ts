@@ -21,6 +21,8 @@ function task(id: string, recurrence: Recurrence, extra: Partial<Task> = {}): Ta
     recurrence,
     period: "all",
     active: true,
+    draft: false,
+    essential: false,
     order: 0,
     createdOn: "2026-01-01",
     ...extra,
@@ -30,7 +32,7 @@ function task(id: string, recurrence: Recurrence, extra: Partial<Task> = {}): Ta
 function data(tasks: Task[], completions: Completion[] = [], closedDays: string[] = []): AppData {
   return {
     version: 1,
-    zones: [{ id: "z", name: "Zone", order: 0 }],
+    zones: [{ id: "z", name: "Zone", order: 0, post: 0 }],
     moments: [
       { id: "m", name: "Matin", startTime: "06:00", order: 0, bonus: false },
       { id: "b", name: "Temps creux", startTime: "00:00", order: 9, bonus: true },
@@ -46,6 +48,8 @@ function data(tasks: Task[], completions: Completion[] = [], closedDays: string[
       adminPinHash: "",
       notifyEmail: "",
     },
+    team: [],
+    deletions: [],
   };
 }
 
@@ -64,6 +68,7 @@ function done(taskId: string, dueDate: string, doneDate = dueDate, passIndex = 0
     anomaly: false,
     photos: [],
     sheetId: null,
+    test: false,
     snapshot: { taskName: "", zoneName: "", momentName: "" },
   };
 }
@@ -150,6 +155,12 @@ describe("checklist du jour", () => {
   it("tâche inactive ou hors période : absente", () => {
     expect(buildChecklist(data([{ ...daily, active: false }]), MON)).toEqual([]);
     expect(buildChecklist(data([{ ...daily, period: "vacances" }]), MON)).toEqual([]);
+  });
+
+  it("les validations d'un profil de test restent dans leur bac à sable", () => {
+    const d = data([daily], [{ ...done("sols", MON), test: true }]);
+    expect(buildChecklist(d, MON)[0].complete).toBe(false);
+    expect(buildChecklist(d, MON, true)[0].complete).toBe(true);
   });
 
   it("plusieurs passages et progression hors bonus", () => {
