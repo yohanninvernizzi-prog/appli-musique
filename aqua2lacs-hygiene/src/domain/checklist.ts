@@ -81,7 +81,25 @@ export function buildChecklist(data: AppData, day: string, test = false): Checkl
   }
   const mo = (i: ChecklistItem) => i.moment?.order ?? 999;
   const zo = (i: ChecklistItem) => i.zone?.order ?? 999;
-  return items.sort((a, b) => mo(a) - mo(b) || zo(a) - zo(b) || a.task.order - b.task.order);
+  // Dans chaque moment : d'abord les tâches essentielles, dans l'ordre de la tournée ; puis le reste, par zone.
+  const es = (i: ChecklistItem) => (i.task.essential ? 0 : 1);
+  return items.sort(
+    (a, b) =>
+      mo(a) - mo(b) ||
+      es(a) - es(b) ||
+      (es(a) === 0 ? 0 : zo(a) - zo(b)) ||
+      a.task.order - b.task.order,
+  );
+}
+
+/** Temps estimé restant (minutes) pour les tâches non terminées dont la durée est renseignée. */
+export function remainingMinutes(items: ChecklistItem[]): number {
+  let total = 0;
+  for (const i of items) {
+    if (i.bonus || i.complete || i.task.durationMin <= 0) continue;
+    total += (i.task.durationMin * (i.passes.length - i.doneCount)) / i.passes.length;
+  }
+  return Math.round(total);
 }
 
 export interface Progress {

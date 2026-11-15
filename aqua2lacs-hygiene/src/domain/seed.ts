@@ -282,6 +282,77 @@ export const ZONE_POSTS: Record<string, 0 | 1 | 2> = {
   mach: 0,
 };
 
+const WEEKDAYS: Recurrence = { type: "weekdays", days: [1, 2, 3, 4, 5] };
+
+/**
+ * Tournée du matin d'un agent seul, dans l'ordre réellement pratiqué au centre.
+ * Les durées sont des estimations (surfaces des plans, cadences non mesurées).
+ */
+const ROUTE: [id: string, zone: string, name: string, description: string, minutes: number, extra?: Partial<Task>][] = [
+  ["r01", "perso", "Salle de pause : coup de propre", "Rangement rapide, table, évier.", 10, { recurrence: WEEKDAYS }],
+  ["r02", "perso", "Personnel : poubelles et sanitaires", "Vider les poubelles. WC et lavabo du personnel.", 10,
+    { recurrence: WEEKDAYS, product: "Désinfectant" }],
+  ["r03", "sanacc", "Accueil : poubelles et sanitaires",
+    "Changer les sacs poubelles de l'accueil. WC, miroir et lavabo à la microfibre, brosse à tremper avec du désinfectant, rouleau.",
+    23, { product: "Désinfectant", material: "Microfibre" }],
+  ["r04", "dech", "Déchaussage : poubelles et bancs", "Vider les poubelles. Bancs de déchaussage à la microfibre.", 13,
+    { material: "Microfibre", product: "Désinfectant" }],
+  ["r05", "vest", "Vestiaires 1 et 2 : poubelles et casiers",
+    "Vider les poubelles. Casiers, bancs et traces sur les cabines.", 32, { material: "Microfibre" }],
+  ["r06", "san", "Vestiaires publics : sanitaires et poubelles",
+    "WC et dessous, brosse, dérouleur papier (recharger), lavabos. Brosse à tremper avec du désinfectant. Vider les poubelles.",
+    47, { product: "Désinfectant" }],
+  ["r07", "perso", "Aspirateur : locaux du personnel", "Salle de pause, vestiaires, couloir.", 18,
+    { recurrence: WEEKDAYS, material: "Aspirateur" }],
+  ["r08", "acc", "Aspirateur : accueil et sas", "Hall, banque d'accueil, boutique, les deux sas et les tapis.", 25,
+    { material: "Aspirateur" }],
+  ["r09", "dech", "Aspirateur : déchaussage", "Autour des sèche-cheveux, angles, sous les bancs, pédiluve.", 8,
+    { material: "Aspirateur" }],
+  ["r10", "vest", "Aspirateur : vestiaires", "Tous les vestiaires publics, bien passer sous les bancs des cabines.", 21,
+    { material: "Aspirateur" }],
+  ["r11", "san", "Aspirateur : sanitaires et douches", "Sanitaires et douches publiques, bondes d'évacuation.", 17,
+    { material: "Aspirateur" }],
+  ["r12", "acc", "Autolaveuse : de l'accueil aux douches",
+    "Accueil, sanitaire accueil, déchaussage, vestiaires, sanitaires et douches. En fin de passage : machine vidée, rincée et rechargée.",
+    53, { material: "Autolaveuse Nilfisk SC400 (local des scolaires)" }],
+];
+
+/** Ajustements des tâches d'origine pour s'accorder avec la tournée ci-dessus. */
+const OVERRIDES: Record<string, Partial<Task>> = {
+  t1: {
+    name: "Accueil & SAS : surfaces de contact",
+    description:
+      "Toiles d'araignée à hauteur d'homme. Poignées et surfaces de contact des deux portes du SAS. Désinfection tripode, comptoir, tables et fauteuils.",
+    material: "Microfibre",
+  },
+  // Remplacées par les étapes de la tournée.
+  t2: { active: false },
+  t3: { active: false },
+  t4: { active: false },
+  t5: { active: false },
+  t7: { active: false },
+  t8: { active: false },
+  t10: { active: false },
+  t9: {
+    momentId: "aprem",
+    essential: true,
+    recurrence: WEEKDAYS,
+    durationMin: 40,
+    description:
+      "Après 16 h, à la fin du temps scolaire (sinon en cours de matinée). Aspirateur (sous les bancs, bondes). Autolaveuse + brosse aux endroits inaccessibles. Microfibre sur les bancs et parois des cabines, casiers si besoin.",
+  },
+  t11: { essential: false },
+  t13: { order: -88, durationMin: 10 },
+  t14: {
+    name: "Tour des plages à l'autolaveuse",
+    description:
+      "Vider les poubelles et retirer les déchets (pansements, cheveux, objets perdus), puis autolaveuse sur les plages.",
+    material: "Autolaveuse Nilfisk SC650",
+    order: -87,
+    durationMin: 40,
+  },
+};
+
 export const DEMO_AGENT_PIN = "1234";
 export const DEMO_ADMIN_PIN = "0000";
 
@@ -306,11 +377,32 @@ export function seedData(): AppData {
     order: i,
     createdOn: "2026-01-01",
   }));
+  const blank = tasks[0];
+  const allTasks: Task[] = [
+    ...tasks.map((t) => ({ ...t, ...OVERRIDES[t.id] })),
+    ...ROUTE.map(([id, zoneId, name, description, durationMin, extra = {}], i) => ({
+      ...blank,
+      id,
+      zoneId,
+      momentId: "avant",
+      name,
+      description,
+      material: "",
+      product: "",
+      durationMin,
+      passes: 1,
+      recurrence: DAILY,
+      essential: true,
+      // Ordre négatif : la tournée passe avant les autres tâches du même moment.
+      order: -100 + i,
+      ...extra,
+    })),
+  ];
   return {
     version: 1,
     zones,
     moments: MOMENTS,
-    tasks,
+    tasks: allTasks,
     agents: [
       { id: "demo1", firstName: "Camille", lastName: "Démo", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },
       { id: "demo2", firstName: "Alex", lastName: "Essai", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },

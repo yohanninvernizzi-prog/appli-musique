@@ -19,7 +19,14 @@ import {
   useSync,
   validateTask,
 } from "../data/store";
-import { buildChecklist, isClosed, progressOf, teamStreak, type ChecklistItem } from "../domain/checklist";
+import {
+  buildChecklist,
+  isClosed,
+  progressOf,
+  remainingMinutes,
+  teamStreak,
+  type ChecklistItem,
+} from "../domain/checklist";
 import { formatDayLong, formatDayShort, formatTime, today, weekdayOf } from "../domain/dates";
 import { describeRecurrence } from "../domain/recurrence";
 import { NOT_DONE_REASONS, type AppData, type Completion, type Moment, type Post } from "../domain/types";
@@ -146,7 +153,9 @@ export function Today() {
   const sideLabel = solo
     ? "Si le temps le permet"
     : `Poste ${otherPost}${partner ? ` · ${partner.agentName}` : ""}`;
-  const progress = progressOf(items.filter((i) => !isSide(i)));
+  const mine = items.filter((i) => !isSide(i));
+  const progress = progressOf(mine);
+  const minutesLeft = remainingMinutes(mine);
   // En mode connecté, l'appareil ne connaît qu'une partie de l'historique : la série viendra du serveur.
   const streak = REMOTE ? 0 : teamStreak(data, day);
   const product = data.settings.productByWeekday[weekdayOf(day) - 1];
@@ -180,7 +189,8 @@ export function Today() {
   const byZone = (list: ChecklistItem[]) => {
     let lastZone = "";
     return list.map((item) => {
-      const zoneName = item.zone?.name ?? "Autre";
+      // Les tâches essentielles forment une tournée ordonnée : un seul intertitre, pas un par zone.
+      const zoneName = item.task.essential && !item.bonus ? "L'essentiel, dans l'ordre" : (item.zone?.name ?? "Autre");
       const header = zoneName !== lastZone ? <h3 className="zone-title">{zoneName}</h3> : null;
       lastZone = zoneName;
       return (
@@ -230,6 +240,14 @@ export function Today() {
           <button className="chip chip-mode" onClick={() => go("/mode")}>
             {solo ? "Seul : tâches essentielles" : `À deux : poste ${sheet.post}`} · <u>changer</u>
           </button>
+          {minutesLeft > 0 && (
+            <span className="chip chip-product">
+              Reste environ{" "}
+              <strong>
+                {minutesLeft >= 60 ? `${Math.floor(minutesLeft / 60)} h ${String(minutesLeft % 60).padStart(2, "0")}` : `${minutesLeft} min`}
+              </strong>
+            </span>
+          )}
           {product && (
             <span className="chip chip-product">
               Produit du jour : <strong>{product}</strong>
