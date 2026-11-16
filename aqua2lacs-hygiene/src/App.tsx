@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { dismissNotice, useSession, useSync } from "./data/store";
 import { AdminDay, AdminHistory, AdminLogin, AdminSheet } from "./screens/admin";
-import { AdminSettings, AdminTaskEdit, AdminTasks, AdminTeam, AdminZones } from "./screens/adminRef";
+import { AdminSettings, AdminTaskEdit, AdminTasks, AdminTeam, AdminTimes, AdminZones } from "./screens/adminRef";
 import { Home, ModeScreen, PinScreen, Recap, Thanks, Today } from "./screens/agent";
 import { go, useRoute } from "./ui/router";
 
@@ -48,6 +48,8 @@ function Routes() {
         return <AdminTaskEdit key={c} id={c ?? ""} />;
       case "zones":
         return <AdminZones />;
+      case "temps":
+        return <AdminTimes />;
       case "equipe":
         return <AdminTeam />;
       case "reglages":

@@ -69,6 +69,7 @@ function done(taskId: string, dueDate: string, doneDate = dueDate, passIndex = 0
     photos: [],
     sheetId: null,
     test: false,
+    durationSec: null,
     snapshot: { taskName: "", zoneName: "", momentName: "" },
   };
 }

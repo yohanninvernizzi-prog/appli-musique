@@ -3,6 +3,7 @@ import {
   addAgent,
   agentLabel,
   changeAdminPassword,
+  clearMeasure,
   deleteTask,
   deleteZone,
   moveZone,
@@ -22,7 +23,8 @@ import {
 } from "../data/store";
 import { formatDayLong, formatDayNumeric, formatTime, toDay, today, WEEKDAY_NAMES, WEEKDAY_SHORT } from "../domain/dates";
 import { describeRecurrence } from "../domain/recurrence";
-import type { Period, Post, Recurrence, Task, Weekday } from "../domain/types";
+import type { Completion, Period, Post, Recurrence, Task, Weekday } from "../domain/types";
+import { formatDuration } from "./agent";
 import { Btn, ConfirmBtn, Empty, Field, Icon, Modal, Screen, Toggle } from "../ui/components";
 import { back, go } from "../ui/router";
 import { AdminShell } from "./admin";
@@ -79,6 +81,9 @@ export function AdminTasks() {
       </section>
       <button className="linkbtn" onClick={() => go("/admin/zones")}>
         Gérer les zones et les moments de la journée
+      </button>
+      <button className="linkbtn" onClick={() => go("/admin/temps")}>
+        Voir les temps mesurés au chronomètre
       </button>
 
       {zones.map((z) => {
@@ -544,6 +549,7 @@ export function AdminTeam() {
   const [last, setLast] = useState("");
   const [pin, setPin] = useState("");
   const [test, setTest] = useState(false);
+  const [timing, setTiming] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const editing = data.agents.find((a) => a.id === editId);
   const [newPin, setNewPin] = useState("");
@@ -566,9 +572,10 @@ export function AdminTeam() {
               <strong>
                 {a.firstName} {a.lastName}
               </strong>
-              <small>Affiché « {agentLabel(a)} »</small>
+              <small>
+                Affiché « {agentLabel(a)} »{a.test && <em className="tag warn">{a.timing ? "test · chrono" : "test"}</em>}
+              </small>
             </span>
-            {a.test && <em className="tag warn">test</em>}
             <Icon name="chevron" size={18} />
           </button>
         ))}
@@ -597,15 +604,19 @@ export function AdminTeam() {
           onChange={setTest}
           label="Profil de test : ses fiches restent à part et ne comptent pas"
         />
+        {test && (
+          <Toggle checked={timing} onChange={setTiming} label="Chronométrer chaque tâche (étude de temps)" />
+        )}
         <Btn
           block
           disabled={!first.trim() || !isPin(pin)}
           onClick={() => {
-            addAgent(first.trim(), last.trim(), pin, test);
+            addAgent(first.trim(), last.trim(), pin, test, timing);
             setFirst("");
             setLast("");
             setPin("");
             setTest(false);
+            setTiming(false);
           }}
         >
           Créer le profil
@@ -641,9 +652,16 @@ export function AdminTeam() {
           </div>
           <Toggle
             checked={editing.test}
-            onChange={(value) => updateAgent(editing.id, { test: value })}
+            onChange={(value) => updateAgent(editing.id, { test: value, timing: value && editing.timing })}
             label="Profil de test"
           />
+          {editing.test && (
+            <Toggle
+              checked={editing.timing}
+              onChange={(value) => updateAgent(editing.id, { timing: value })}
+              label="Chronométrer chaque tâche (étude de temps)"
+            />
+          )}
           <Field label="Nouveau code PIN (4 chiffres)">
             <input
               inputMode="numeric"
@@ -676,6 +694,147 @@ export function AdminTeam() {
         </Modal>
       )}
     </AdminShell>
+  );
+}
+
+// ───────── Temps mesurés ─────────
+
+const median = (values: number[]): number => {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
+
+/** Marge ajoutée à la médiane pour fixer la durée retenue : un geste chronométré va plus vite qu'en routine. */
+const MARGIN = 1.15;
+const retained = (seconds: number): number => Math.max(1, Math.ceil((seconds * MARGIN) / 60));
+
+export function AdminTimes() {
+  const data = useData();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const byTask = new Map<string, Completion[]>();
+  for (const c of data.completions) {
+    if (c.status !== "done" || c.durationSec === null) continue;
+    byTask.set(c.taskId, [...(byTask.get(c.taskId) ?? []), c]);
+  }
+  const moments = [...data.moments].sort((a, b) => a.order - b.order);
+  const tasks = data.tasks
+    .filter((t) => t.active)
+    .sort((a, b) => Number(b.essential) - Number(a.essential) || a.order - b.order);
+  /** Minutes d'un passage : la médiane mesurée si elle existe, sinon la durée estimée. */
+  const minutesOf = (t: Task): number => {
+    const measures = byTask.get(t.id);
+    return measures ? median(measures.map((c) => c.durationSec ?? 0)) / 60 : t.durationMin;
+  };
+  const hm = (minutes: number) => (minutes > 0 ? formatDuration(minutes * 60) : "–");
+  const open = tasks.find((t) => t.id === openId);
+  const openMeasures = (byTask.get(openId ?? "") ?? []).sort((a, b) => b.at.localeCompare(a.at));
+  const measured = tasks.filter((t) => byTask.has(t.id)).length;
+
+  return (
+    <Screen
+      title="Temps mesurés"
+      subtitle={`${measured} tâche${measured > 1 ? "s" : ""} chronométrée${measured > 1 ? "s" : ""}`}
+      onBack={() => back("/admin/taches")}
+    >
+      <section className="card">
+        <h2>Charge par moment de la journée</h2>
+        <p className="detail-zone">
+          Temps d'un jour où toutes les tâches actives tombent. Mesure quand elle existe, sinon durée estimée.
+        </p>
+        <div className="times-table" role="table">
+          <div className="times-row times-head" role="row">
+            <span>Moment</span>
+            <span>Essentielles</span>
+            <span>Tout</span>
+          </div>
+          {moments
+            .filter((m) => !m.bonus)
+            .map((m) => {
+              const list = tasks.filter((t) => t.momentId === m.id);
+              const sum = (subset: Task[]) => subset.reduce((n, t) => n + minutesOf(t) * t.passes, 0);
+              const unknown = list.filter((t) => minutesOf(t) === 0).length;
+              return (
+                <div key={m.id} className="times-row" role="row">
+                  <span>
+                    {m.name}
+                    {unknown > 0 && <small>{unknown} sans durée</small>}
+                  </span>
+                  <strong>{hm(sum(list.filter((t) => t.essential)))}</strong>
+                  <strong>{hm(sum(list))}</strong>
+                </div>
+              );
+            })}
+        </div>
+      </section>
+
+      {moments.map((m) => {
+        const list = tasks.filter((t) => t.momentId === m.id);
+        if (list.length === 0) return null;
+        return (
+          <section key={m.id} className="card">
+            <h2>{m.name}</h2>
+            {list.map((t) => {
+              const measures = byTask.get(t.id);
+              const values = measures?.map((c) => c.durationSec ?? 0) ?? [];
+              return (
+                <button key={t.id} className="row" onClick={() => setOpenId(t.id)}>
+                  <span className="row-main">
+                    <strong>{t.name}</strong>
+                    <small>
+                      {measures
+                        ? `${values.length} mesure${values.length > 1 ? "s" : ""} · médiane ${formatDuration(median(values))} (${formatDuration(Math.min(...values))} à ${formatDuration(Math.max(...values))})`
+                        : "Pas encore mesurée"}
+                      {` · durée actuelle : ${t.durationMin > 0 ? `${t.durationMin} min` : "non renseignée"}`}
+                    </small>
+                  </span>
+                  <span className="row-tags">
+                    {t.essential && <em className="tag ok">essentielle</em>}
+                    {measures && values.length < 3 && <em className="tag warn">moins de 3 mesures</em>}
+                  </span>
+                  <Icon name="chevron" size={18} />
+                </button>
+              );
+            })}
+          </section>
+        );
+      })}
+
+      {open && (
+        <Modal title={open.name} onClose={() => setOpenId(null)}>
+          <p className="detail-zone">
+            Durée actuelle de la tâche : {open.durationMin > 0 ? `${open.durationMin} min` : "non renseignée"}.
+          </p>
+          {openMeasures.length === 0 ? (
+            <Empty>Aucune mesure. Lancez le chrono de cette tâche avec un profil de test.</Empty>
+          ) : (
+            <>
+              <ul className="pass-list">
+                {openMeasures.map((c) => (
+                  <li key={c.id}>
+                    <span>
+                      {formatDuration(c.durationSec ?? 0)} · le {formatDayNumeric(c.doneDate)} à {formatTime(c.at)}
+                    </span>
+                    <ConfirmBtn small confirm="Écarter ?" onConfirm={() => clearMeasure(c.id)}>
+                      Écarter
+                    </ConfirmBtn>
+                  </li>
+                ))}
+              </ul>
+              <Btn
+                block
+                onClick={() => {
+                  saveTask({ ...open, durationMin: retained(median(openMeasures.map((c) => c.durationSec ?? 0))) });
+                  setOpenId(null);
+                }}
+              >
+                Retenir {retained(median(openMeasures.map((c) => c.durationSec ?? 0)))} min (médiane + 15 %)
+              </Btn>
+            </>
+          )}
+        </Modal>
+      )}
+    </Screen>
   );
 }
 

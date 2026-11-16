@@ -74,6 +74,8 @@ export interface Agent {
   active: boolean;
   /** Profil de test ou de démonstration : ses fiches restent à part et ne comptent pas. */
   test: boolean;
+  /** Profil de test qui chronomètre chaque tâche (étude de temps). */
+  timing: boolean;
 }
 
 export type CompletionStatus = "done" | "not_done" | "cancelled";
@@ -108,6 +110,8 @@ export interface Completion {
   sheetId: ID | null;
   /** Validation faite par un profil de test (bac à sable). */
   test: boolean;
+  /** Durée chronométrée en secondes, pauses déduites (null si non mesurée). */
+  durationSec: number | null;
   /** Copie des libellés au moment de la validation (traçabilité si le référentiel change). */
   snapshot: { taskName: string; zoneName: string; momentName: string };
 }

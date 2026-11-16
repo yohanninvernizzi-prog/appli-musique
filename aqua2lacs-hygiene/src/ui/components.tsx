@@ -41,6 +41,8 @@ const ICONS: Record<string, string> = {
   lock: "M7 10V7a5 5 0 0110 0v3M6 10h12a1 1 0 011 1v8a1 1 0 01-1 1H6a1 1 0 01-1-1v-8a1 1 0 011-1z",
   info: "M12 11v6m0-9.5v.5M12 21a9 9 0 110-18 9 9 0 010 18z",
   clock: "M12 7v5l3 2M12 21a9 9 0 110-18 9 9 0 010 18z",
+  play: "M8 5.5v13l11-6.5z",
+  pause: "M8 5v14M16 5v14",
 };
 
 export function Icon({ name, size = 24 }: { name: keyof typeof ICONS | string; size?: number }) {

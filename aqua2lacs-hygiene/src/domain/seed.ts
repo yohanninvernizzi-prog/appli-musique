@@ -404,8 +404,8 @@ export function seedData(): AppData {
     moments: MOMENTS,
     tasks: allTasks,
     agents: [
-      { id: "demo1", firstName: "Camille", lastName: "Démo", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },
-      { id: "demo2", firstName: "Alex", lastName: "Essai", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false },
+      { id: "demo1", firstName: "Camille", lastName: "Démo", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false, timing: false },
+      { id: "demo2", firstName: "Alex", lastName: "Essai", pinHash: hashPin(DEMO_AGENT_PIN), active: true, test: false, timing: false },
     ],
     completions: [],
     sheets: [],

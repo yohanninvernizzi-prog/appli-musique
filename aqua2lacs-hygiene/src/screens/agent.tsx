@@ -3,20 +3,29 @@ import logo from "../assets/logo.webp";
 import {
   agentLabel,
   agentName,
+  cancelTimer,
   canEdit,
   getTeam,
   loginAgent,
   logout,
   markNotDone,
+  pauseTimer,
   refreshAgents,
   REMOTE,
+  resumeTimer,
   sendSheet,
   setCompletionNote,
   setSheetMode,
+  startTimer,
+  stopTimer,
+  timerElapsed,
+  timerKey,
+  type Timer,
   undoCompletion,
   useData,
   useSession,
   useSync,
+  useTimer,
   validateTask,
 } from "../data/store";
 import {
@@ -110,6 +119,7 @@ export function Today() {
   const data = useData();
   const session = useSession();
   const sync = useSync();
+  const timer = useTimer();
   const day = today();
   const sheet = data.sheets.find((s) => s.id === session.sheetId);
   const staleSheet = !!sheet && sheet.date < day;
@@ -164,14 +174,21 @@ export function Today() {
   const visible = (i: ChecklistItem) => showAll || !i.complete || popped.includes(keyOf(i));
   const moments = [...data.moments].sort((a, b) => a.order - b.order);
   const me = data.agents.find((a) => a.id === session.agentId);
+  // Étude de temps : le profil chronomètre chaque tâche au lieu de la valider d'un tap.
+  const timing = test && !!me?.timing;
+  const activeTimer = timer && timer.sheetId === sheet.id ? timer : null;
+  const timedItem = activeTimer ? (items.find((i) => timerKey(i) === activeTimer.key) ?? null) : null;
+
+  const celebrate = (item: ChecklistItem) => {
+    const key = keyOf(item);
+    setPopped((list) => [...list, key]);
+    setTimeout(() => setPopped((list) => list.filter((k) => k !== key)), 1600);
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
 
   const tap = (item: ChecklistItem) => {
-    if (validateTask(item)) {
-      const key = keyOf(item);
-      setPopped((list) => [...list, key]);
-      setTimeout(() => setPopped((list) => list.filter((k) => k !== key)), 1600);
-      if (navigator.vibrate) navigator.vibrate(30);
-    }
+    if (timing) startTimer(item);
+    else if (validateTask(item)) celebrate(item);
   };
 
   const card = (item: ChecklistItem) => (
@@ -180,6 +197,9 @@ export function Today() {
       item={item}
       data={data}
       popped={popped.includes(keyOf(item))}
+      timing={timing}
+      timed={activeTimer?.key === timerKey(item)}
+      timerBusy={!!activeTimer}
       onTap={() => tap(item)}
       onOpen={() => setDetailKey(keyOf(item))}
     />
@@ -219,13 +239,27 @@ export function Today() {
         </button>
       }
       footer={
-        <Btn block onClick={() => go("/recap")}>
-          Terminer mon service
-        </Btn>
+        <>
+          {activeTimer && (
+            <TimerBar
+              timer={activeTimer}
+              onStop={() => {
+                if (timedItem && stopTimer(timedItem)) celebrate(timedItem);
+                else cancelTimer();
+              }}
+            />
+          )}
+          <Btn block onClick={() => go("/recap")}>
+            Terminer mon service
+          </Btn>
+        </>
       }
     >
       {test && (
-        <p className="banner-test">Profil de test : ce que tu valides ici ne compte pas et reste à part.</p>
+        <p className="banner-test">
+          Profil de test : ce que tu valides ici ne compte pas et reste à part.
+          {timing && " Touche ▶ pour lancer le chrono d'une tâche, puis « Terminer » quand elle est finie."}
+        </p>
       )}
 
       <section className="hero">
@@ -415,27 +449,90 @@ export function ModeScreen() {
   );
 }
 
+/** Durée lisible : « 45 s », « 18 min », « 1 h 05 ». */
+export function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")}`;
+}
+
+/** Bandeau du chronomètre en cours : temps qui défile, pause, fin de tâche. */
+function TimerBar({ timer, onStop }: { timer: Timer; onStop: () => void }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!timer.running) return;
+    const id = setInterval(() => tick((n) => n + 1), 500);
+    return () => clearInterval(id);
+  }, [timer.running]);
+  const total = Math.floor(timerElapsed(timer) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const clock =
+    total >= 3600
+      ? `${Math.floor(total / 3600)}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`
+      : `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+  return (
+    <div className={`timerbar${timer.running ? "" : " paused"}`} role="timer" aria-label={`Chronomètre : ${timer.taskName}`}>
+      <div className="timerbar-head">
+        <strong className="timerbar-clock">{clock}</strong>
+        <span className="timerbar-name">
+          {timer.running ? "" : "En pause · "}
+          {timer.taskName}
+        </span>
+        <button className="linkbtn timerbar-cancel" onClick={cancelTimer}>
+          Annuler
+        </button>
+      </div>
+      <div className="btn-row">
+        <Btn kind="secondary" onClick={timer.running ? pauseTimer : resumeTimer}>
+          <Icon name={timer.running ? "pause" : "play"} /> {timer.running ? "Pause" : "Reprendre"}
+        </Btn>
+        <Btn kind="success" onClick={onStop}>
+          <Icon name="check" /> Terminer
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
 function TaskCard(props: {
   item: ChecklistItem;
   data: AppData;
   popped: boolean;
+  /** Profil en étude de temps : le bouton lance le chronomètre. */
+  timing: boolean;
+  /** Cette tâche est celle en cours de chronométrage. */
+  timed: boolean;
+  /** Un chronomètre tourne déjà (sur cette tâche ou une autre). */
+  timerBusy: boolean;
   onTap: () => void;
   onOpen: () => void;
 }) {
   const { item, data } = props;
   const multi = item.passes.length > 1;
   const lastDone = [...item.passes].reverse().find(Boolean) ?? null;
-  const cls = ["task", item.complete && "done", item.late && "late", props.popped && "pop"].filter(Boolean).join(" ");
+  const cls = ["task", item.complete && "done", item.late && "late", props.popped && "pop", props.timed && "timed"]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className={cls}>
       <button
         className="task-check"
         onClick={props.onTap}
-        disabled={item.complete}
-        aria-label={item.complete ? `${item.task.name} : fait` : `Valider ${item.task.name}`}
+        disabled={item.complete || (props.timing && props.timerBusy)}
+        aria-label={
+          item.complete
+            ? `${item.task.name} : fait`
+            : props.timing
+              ? `Lancer le chrono : ${item.task.name}`
+              : `Valider ${item.task.name}`
+        }
       >
         {item.complete ? (
           <Icon name="check" size={34} />
+        ) : props.timing ? (
+          <span className="task-pass">
+            <Icon name={props.timed ? "clock" : "play"} size={28} />
+          </span>
         ) : multi ? (
           <span className="task-pass">
             {item.doneCount}/{item.passes.length}
@@ -448,6 +545,7 @@ function TaskCard(props: {
         {lastDone && (
           <span className="task-meta ok">
             ✓ {agentName(data, lastDone.agentId)} à {formatTime(lastDone.at)}
+            {lastDone.durationSec !== null ? ` · ${formatDuration(lastDone.durationSec)}` : ""}
             {multi && !item.complete ? ` · encore ${item.passes.length - item.doneCount} passage` : ""}
           </span>
         )}

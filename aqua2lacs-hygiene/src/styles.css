@@ -546,6 +546,105 @@ p {
   color: var(--muted);
 }
 
+/* Pendant un chronométrage, les autres tâches attendent. */
+.task:not(.done):not(.timed) .task-check:disabled {
+  opacity: 0.3;
+}
+
+.row-main small .tag {
+  margin-left: 6px;
+}
+
+.task.timed {
+  border-color: var(--turq);
+  background: #e6f7f6;
+}
+
+.task.timed .task-check {
+  border-color: var(--turq);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgba(14, 159, 152, 0.18);
+  }
+}
+
+.timerbar {
+  margin-bottom: 10px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timerbar.paused {
+  background: #5c4a12;
+}
+
+.timerbar-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timerbar-clock {
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.timerbar-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timerbar .timerbar-cancel {
+  color: #fff;
+  padding: 6px 4px;
+  font-size: 0.9rem;
+}
+
+.times-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.times-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.times-row > :not(:first-child) {
+  text-align: right;
+}
+
+.times-head {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.times-row small {
+  display: block;
+  color: var(--orange);
+  font-size: 0.8rem;
+}
+
 .chip-sync {
   background: var(--green-soft);
   color: #0f5c32;

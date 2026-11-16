@@ -88,6 +88,7 @@ export const agentFromRow = (r: Row): Agent => ({
   pinHash: "",
   active: !!r.active,
   test: !!r.is_test,
+  timing: !!r.timing,
 });
 
 export const settingsToRow = (s: Settings): Row => ({
@@ -173,6 +174,8 @@ export const completionToRow = (c: Completion): Row => ({
   sheet_id: c.sheetId,
   snapshot: c.snapshot,
   test: c.test,
+  // Envoyée seulement si elle existe : une base pas encore mise à jour ignore ainsi ce champ.
+  ...(c.durationSec === null ? {} : { duration_sec: c.durationSec }),
 });
 export const completionFromRow = (r: Row): Completion => {
   const snap = (r.snapshot ?? {}) as Partial<Completion["snapshot"]>;
@@ -191,6 +194,7 @@ export const completionFromRow = (r: Row): Completion => {
     photos: (r.photos as string[]) ?? [],
     sheetId: r.sheet_id ? String(r.sheet_id) : null,
     test: !!r.test,
+    durationSec: typeof r.duration_sec === "number" ? r.duration_sec : null,
     snapshot: {
       taskName: snap.taskName ?? "",
       zoneName: snap.zoneName ?? "",

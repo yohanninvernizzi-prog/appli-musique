@@ -54,6 +54,7 @@ const DATA_KEY = REMOTE ? "a2l-hygiene-cache-v1" : "a2l-hygiene-data-v2";
 const SESSION_KEY = "a2l-hygiene-session-v1";
 const OUTBOX_KEY = "a2l-hygiene-outbox-v1";
 const PINS_KEY = "a2l-hygiene-pins-v1";
+const TIMER_KEY = "a2l-hygiene-timer-v1";
 const ADMIN_HISTORY_DAYS = 70;
 
 function read<T>(key: string): T | null {
@@ -89,9 +90,9 @@ function normalize(d: AppData): AppData {
     ...d,
     zones: d.zones.map((z) => ({ ...z, post: z.post ?? 0 })),
     tasks: d.tasks.map((t) => ({ ...t, essential: !!t.essential, draft: !!t.draft })),
-    agents: d.agents.map((a) => ({ ...a, test: !!a.test })),
+    agents: d.agents.map((a) => ({ ...a, test: !!a.test, timing: !!a.timing })),
     sheets: d.sheets.map((x) => ({ ...x, mode: x.mode ?? null, post: x.post ?? 0, test: !!x.test })),
-    completions: d.completions.map((c) => ({ ...c, test: !!c.test })),
+    completions: d.completions.map((c) => ({ ...c, test: !!c.test, durationSec: c.durationSec ?? null })),
     team: d.team ?? [],
     deletions: d.deletions ?? [],
   };
@@ -611,6 +612,7 @@ function baseCompletion(item: ChecklistItem, passIndex: number): Completion {
     photos: [],
     sheetId: session.sheetId,
     test: session.admin ? viewTests : sessionIsTest(),
+    durationSec: null,
     snapshot: {
       taskName: item.task.name,
       zoneName: item.zone?.name ?? "",
@@ -629,11 +631,11 @@ function addCompletion(c: Completion, obsolete: (x: Completion) => boolean) {
 }
 
 /** Valide le prochain passage libre d'une tâche. Renvoie la validation créée. */
-export function validateTask(item: ChecklistItem): Completion | null {
+export function validateTask(item: ChecklistItem, durationSec: number | null = null): Completion | null {
   if (!session.agentId || !sheetIsOpen(session.sheetId)) return null;
   const passIndex = item.passes.findIndex((p) => p === null);
   if (passIndex === -1) return null;
-  const c = baseCompletion(item, passIndex);
+  const c: Completion = { ...baseCompletion(item, passIndex), durationSec };
   addCompletion(
     c,
     (x) =>
@@ -653,6 +655,75 @@ export function markNotDone(item: ChecklistItem, reason: string, comment: string
     c,
     (x) => x.taskId === c.taskId && x.dueDate === c.dueDate && x.status === "not_done" && x.sheetId === c.sheetId,
   );
+}
+
+// ───────── Chronomètre (profils de test avec étude de temps) ─────────
+
+export interface Timer {
+  /** Tâche chronométrée : identifiant + jour prévu. */
+  key: string;
+  taskName: string;
+  sheetId: string;
+  /** Début de la période en cours (millisecondes). */
+  startedAt: number;
+  /** Temps déjà cumulé avant la période en cours. */
+  accumulated: number;
+  running: boolean;
+}
+
+// On mémorise l'heure de départ plutôt que de compter : le chrono survit à l'écran éteint ou à l'appli fermée.
+let chrono: Timer | null = read<Timer>(TIMER_KEY);
+
+function setTimer(next: Timer | null) {
+  chrono = next;
+  write(TIMER_KEY, next);
+  emit();
+}
+
+export const useTimer = (): Timer | null => useSyncExternalStore(subscribe, () => chrono);
+export const timerKey = (item: ChecklistItem): string => `${item.task.id}@${item.dueDate}`;
+export const timerElapsed = (t: Timer): number => t.accumulated + (t.running ? Date.now() - t.startedAt : 0);
+
+/** Démarre le chronomètre d'une tâche. Un seul chronomètre à la fois. */
+export function startTimer(item: ChecklistItem): boolean {
+  if (!session.sheetId || !sheetIsOpen(session.sheetId) || item.complete) return false;
+  if (chrono && chrono.sheetId === session.sheetId) return false;
+  setTimer({
+    key: timerKey(item),
+    taskName: item.task.name,
+    sheetId: session.sheetId,
+    startedAt: Date.now(),
+    accumulated: 0,
+    running: true,
+  });
+  return true;
+}
+
+export function pauseTimer(): void {
+  if (chrono?.running) setTimer({ ...chrono, accumulated: timerElapsed(chrono), running: false });
+}
+
+export function resumeTimer(): void {
+  if (chrono && !chrono.running) setTimer({ ...chrono, startedAt: Date.now(), running: true });
+}
+
+export function cancelTimer(): void {
+  setTimer(null);
+}
+
+/** Arrête le chronomètre et valide la tâche avec la durée mesurée (pauses déduites). */
+export function stopTimer(item: ChecklistItem): Completion | null {
+  if (!chrono || chrono.key !== timerKey(item)) return null;
+  const seconds = Math.max(1, Math.round(timerElapsed(chrono) / 1000));
+  setTimer(null);
+  return validateTask(item, seconds);
+}
+
+/** Responsable : écarte une mesure aberrante (la validation reste, la durée est effacée). */
+export function clearMeasure(id: string): void {
+  if (!session.admin) return;
+  mutate((d) => ({ ...d, completions: d.completions.map((c) => (c.id === id ? { ...c, durationSec: null } : c)) }));
+  adminWrite(`measure:${id}`, () => supabase!.rpc("admin_clear_measure", { p_id: id }));
 }
 
 /** L'agent connecté peut-il encore modifier cette validation ? */
@@ -833,18 +904,28 @@ function pushAgent(agent: Agent, pin: string | null, delay = 0) {
         p_active: agent.active,
         p_pin: pin,
         p_test: agent.test,
+        // Envoyé seulement si coché : une base pas encore mise à jour accepte ainsi l'appel.
+        ...(agent.timing ? { p_timing: true } : {}),
       }),
     delay,
   );
 }
 
-export function addAgent(firstName: string, lastName: string, pin: string, test = false): void {
-  const agent: Agent = { id: uid(), firstName, lastName, pinHash: REMOTE ? "" : hashPin(pin), active: true, test };
+export function addAgent(firstName: string, lastName: string, pin: string, test = false, timing = false): void {
+  const agent: Agent = {
+    id: uid(),
+    firstName,
+    lastName,
+    pinHash: REMOTE ? "" : hashPin(pin),
+    active: true,
+    test,
+    timing: test && timing,
+  };
   mutate((d) => ({ ...d, agents: [...d.agents, agent] }));
   pushAgent(agent, pin);
 }
 
-export function updateAgent(id: string, patch: Partial<Pick<Agent, "firstName" | "lastName" | "active" | "test">>): void {
+export function updateAgent(id: string, patch: Partial<Pick<Agent, "firstName" | "lastName" | "active" | "test" | "timing">>): void {
   mutate((d) => ({ ...d, agents: d.agents.map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
   const agent = data.agents.find((a) => a.id === id);
   if (agent) pushAgent(agent, null, 600);

@@ -120,6 +120,10 @@ alter table public.sheets      add column if not exists post      integer not nu
 alter table public.sheets      add column if not exists test      boolean not null default false;
 alter table public.completions add column if not exists test      boolean not null default false;
 
+-- Version 3 : étude de temps (chronomètre des profils de test).
+alter table public.agents      add column if not exists timing       boolean not null default false;
+alter table public.completions add column if not exists duration_sec integer;
+
 -- Journal des suppressions de fiches par le responsable.
 create table if not exists public.deletions (
   id               uuid primary key default gen_random_uuid(),
@@ -257,7 +261,7 @@ create or replace function public.list_agents() returns jsonb
 language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', id, 'first_name', first_name, 'last_name', left(trim(last_name), 1), 'active', active,
-           'is_test', is_test)
+           'is_test', is_test, 'timing', timing)
            order by first_name), '[]'::jsonb)
     from public.agents where active;
 $$;
@@ -285,7 +289,7 @@ begin
     'tasks',    (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.tasks t),
     'agents',   (select coalesce(jsonb_agg(jsonb_build_object(
                    'id', id, 'first_name', first_name, 'last_name', left(trim(last_name), 1), 'active', active,
-                   'is_test', is_test)), '[]'::jsonb)
+                   'is_test', is_test, 'timing', timing)), '[]'::jsonb)
                    from public.agents),
     'settings', (select jsonb_build_object(
                    'product_by_weekday', product_by_weekday, 'closed_days', closed_days, 'active_period', active_period)
@@ -366,10 +370,10 @@ begin
           outcome := 'locked';
         else
           insert into public.completions (id, task_id, due_date, done_date, pass_index, status, agent_id, at,
-                                          reason, comment, anomaly, photos, sheet_id, snapshot, test)
+                                          reason, comment, anomaly, photos, sheet_id, snapshot, test, duration_sec)
           values (c.id, c.task_id, c.due_date, c.done_date, coalesce(c.pass_index, 0), c.status, p_agent, c.at,
                   coalesce(c.reason, ''), coalesce(c.comment, ''), coalesce(c.anomaly, false),
-                  coalesce(c.photos, '[]'::jsonb), c.sheet_id, coalesce(c.snapshot, '{}'::jsonb), v_test)
+                  coalesce(c.photos, '[]'::jsonb), c.sheet_id, coalesce(c.snapshot, '{}'::jsonb), v_test, c.duration_sec)
           on conflict (id) do update
              set reason = excluded.reason, comment = excluded.comment, anomaly = excluded.anomaly, photos = excluded.photos
            where public.completions.agent_id = p_agent;
@@ -396,18 +400,20 @@ end $$;
 
 -- Responsable : créer ou modifier un profil (le code PIN n'est jamais stocké en clair).
 drop function if exists public.admin_save_agent(text, text, text, boolean, text);
+drop function if exists public.admin_save_agent(text, text, text, boolean, text, boolean);
 create or replace function public.admin_save_agent(
-  p_id text, p_first text, p_last text, p_active boolean, p_pin text default null, p_test boolean default false
+  p_id text, p_first text, p_last text, p_active boolean, p_pin text default null, p_test boolean default false,
+  p_timing boolean default false
 ) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.is_admin() then raise exception 'Accès réservé au responsable.'; end if;
-  insert into public.agents (id, first_name, last_name, active, is_test, pin_hash)
-  values (p_id, p_first, p_last, p_active, coalesce(p_test, false),
+  insert into public.agents (id, first_name, last_name, active, is_test, timing, pin_hash)
+  values (p_id, p_first, p_last, p_active, coalesce(p_test, false), coalesce(p_test, false) and coalesce(p_timing, false),
           case when p_pin is null then '' else crypt(p_pin, gen_salt('bf', 8)) end)
   on conflict (id) do update
      set first_name = excluded.first_name, last_name = excluded.last_name, active = excluded.active,
-         is_test = excluded.is_test,
+         is_test = excluded.is_test, timing = excluded.timing,
          pin_hash = case when p_pin is null then public.agents.pin_hash else excluded.pin_hash end,
          failed_attempts = case when p_pin is null then public.agents.failed_attempts else 0 end,
          locked_until = case when p_pin is null then public.agents.locked_until else null end;
@@ -430,6 +436,16 @@ begin
   perform set_config('a2l.purge', '', true);
   insert into public.deletions (scope, agent_name, day, reason, sheet_count, completion_count, test)
   values ('sheet', s.agent_name, s.day, coalesce(p_reason, ''), 1, n, s.test);
+end $$;
+
+-- Responsable : écarter une mesure de temps aberrante (la validation reste, la durée est effacée).
+create or replace function public.admin_clear_measure(p_id text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Accès réservé au responsable.'; end if;
+  perform set_config('a2l.purge', 'on', true);
+  update public.completions set duration_sec = null where id = p_id and test;
+  perform set_config('a2l.purge', '', true);
 end $$;
 
 -- Responsable : vider toutes les fiches de test ('tests') ou absolument toutes les fiches ('all').
@@ -463,6 +479,7 @@ grant execute on function public.agent_pull(text, text, date)          to anon, 
 grant execute on function public.agent_sync(text, text, jsonb)         to anon, authenticated;
 grant execute on function public.is_admin()                            to authenticated;
 grant execute on function public.claim_admin()                         to authenticated;
-grant execute on function public.admin_save_agent(text, text, text, boolean, text, boolean) to authenticated;
+grant execute on function public.admin_save_agent(text, text, text, boolean, text, boolean, boolean) to authenticated;
+grant execute on function public.admin_clear_measure(text)             to authenticated;
 grant execute on function public.admin_delete_sheet(text, text)       to authenticated;
 grant execute on function public.admin_wipe(text, text)               to authenticated;
