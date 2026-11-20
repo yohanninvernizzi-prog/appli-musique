@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Maquette T3 lot 16</title>
+<script>
+/* =========================================================================
+   DONNÉES DE GÉOMÉTRIE — seule source de vérité de la maquette.
+   Unité : le centimètre (1 unité three.js = 1 cm).
+   Repère plan : origine = angle INTÉRIEUR haut-gauche du séjour
+   (face intérieure du mur mitoyen gauche × face intérieure du mur du couloir).
+   x vers la droite, y vers le bas du plan (terrasse). En 3D : y plan -> axe Z,
+   la hauteur -> axe Y. Sol fini à 0.
+   Rectangles : x, y = coin haut-gauche ; w = largeur (selon x) ; d = profondeur (selon y).
+   Pour corriger une cote : modifier la valeur ici, recharger la page.
+   ========================================================================= */
+/*GEO-START*/
+const GEO = {
+  meta: {
+    projet: 'T3 lot 16 - RDC, réhabilitation ancienne ferme (Haut-Doubs)',
+    unite: 'cm',
+    hauteurSousPlafond: 250,
+    interieur: { x0: 0, y0: 0, x1: 1110, y1: 577 },
+    nordDegres: 60,            // le nord est à 60° à droite du haut du plan
+    hauteurOeil: 160,          // vue « visite »
+    coupe: 120,                // hauteur de la coupe des murs
+    // ---- valeurs standard retenues faute d'information (voir HYPOTHESES.md) ----
+    porte: { epaisseurVantail: 4, jeuSol: 1, hauteurPoignee: 105, poigneeDuChant: 6 },
+    menuiserie: { profondeurDormant: 7, largeurDormant: 6, largeurOuvrant: 5, seuilBaie: 2, recouvrementCoulissant: 6 },
+    plinthe: { hauteur: 7, epaisseur: 1.5 },
+    parquet: { largeurLame: 20, longueurMin: 120, longueurMax: 220 },
+    cuisine: { epaisseurPlan: 4 },
+    plafondEpaisseurGraphique: 12,
+    rayonCorpsVisite: 20
+  },
+
+  // Murs : tous montent de 0 à hauteurSousPlafond.
+  walls: [
+    // --- murs porteurs et façades ---
+    { id: 'couloir-g',         nom: 'Mur couloir (haut), partie gauche de la porte', type: 'porteur', x: -17,  y: -33, w: 18,   d: 33 },
+    { id: 'couloir-d',         nom: 'Mur couloir (haut), à droite de la porte',      type: 'porteur', x: 99,   y: -33, w: 1071, d: 33 },
+    { id: 'mitoyen-g',         nom: 'Mur mitoyen gauche',                            type: 'porteur', x: -17,  y: 0,   w: 17,   d: 577 },
+    { id: 'facade-terrasse-1', nom: 'Façade terrasse, tronçon 1',                    type: 'porteur', x: -17,  y: 577, w: 384,  d: 72 },
+    { id: 'facade-terrasse-2', nom: 'Façade terrasse, tronçon 2',                    type: 'porteur', x: 565,  y: 577, w: 328,  d: 72 },
+    { id: 'facade-terrasse-3', nom: 'Façade terrasse, tronçon 3',                    type: 'porteur', x: 993,  y: 577, w: 177,  d: 72 },
+    { id: 'facade-droite-1',   nom: 'Façade droite, tronçon haut',                   type: 'porteur', x: 1110, y: 0,   w: 60,   d: 161 },
+    { id: 'facade-droite-2',   nom: 'Façade droite, tronçon bas',                    type: 'porteur', x: 1110, y: 261, w: 60,   d: 316 },
+    // --- cloisons ---
+    { id: 'placard-droit',     nom: 'Bloc placard, côté droit',                      type: 'cloison', x: 186,  y: 0,   w: 7,    d: 226 },
+    { id: 'placard-bas',       nom: 'Bloc placard, côté bas',                        type: 'cloison', x: 119,  y: 219, w: 74,   d: 7 },
+    { id: 'sde-gauche',        nom: "Salle d'eau, mur gauche",                       type: 'cloison', x: 494,  y: 0,   w: 7,    d: 285 },
+    { id: 'sde-bas-g',         nom: "Salle d'eau, mur bas, partie gauche",           type: 'cloison', x: 494,  y: 278, w: 108,  d: 7 },
+    { id: 'sde-bas-d',         nom: "Salle d'eau, mur bas, partie droite",           type: 'cloison', x: 681,  y: 278, w: 25,   d: 7 },
+    { id: 'sde-ch1-double',    nom: "Mur double salle d'eau / chambre 1",            type: 'cloison', x: 691,  y: 0,   w: 15,   d: 285 },
+    { id: 'ch1-bas',           nom: 'Chambre 1, mur bas',                            type: 'cloison', x: 781,  y: 278, w: 329,  d: 7 },
+    { id: 'raccord',           nom: 'Raccord',                                       type: 'cloison', x: 783,  y: 278, w: 13,   d: 9 },
+    { id: 'wc-gauche',         nom: 'WC, mur gauche',                                type: 'cloison', x: 642,  y: 385, w: 7,    d: 192 },
+    { id: 'wc-haut',           nom: 'WC, mur haut (partie gauche de la porte)',      type: 'cloison', x: 642,  y: 385, w: 59,   d: 7 },
+    { id: 'ch2-wc',            nom: 'Mur chambre 2 / WC',                            type: 'cloison', x: 788,  y: 375, w: 8,    d: 202 }
+  ],
+
+  // Ouvertures : rectangle = emprise du vide dans l'épaisseur du mur.
+  // axe : direction le long de laquelle l'ouverture s'étend ('x' ou 'y').
+  // Portes : gond = coordonnée du gond le long de l'axe ; ouverture = +1 (vers les x/y croissants) ou -1.
+  // Fenêtres : faceInterieure = coordonnée du nu intérieur du mur (menuiserie posée au nu intérieur).
+  openings: [
+    { id: 'porte-entree', type: 'porte',   nom: "Porte d'entrée",    mur: 'couloir',         axe: 'x', x: 1,    y: -33, w: 98,  d: 33, allege: 0,  hauteur: 215, gond: 1,   ouverture: +1 },
+    { id: 'porte-sde',    type: 'porte',   nom: "Porte salle d'eau", mur: 'sde-bas',         axe: 'x', x: 602,  y: 278, w: 79,  d: 7,  allege: 0,  hauteur: 204, gond: 681, ouverture: +1 },
+    { id: 'porte-wc',     type: 'porte',   nom: 'Porte WC',          mur: 'wc-haut',         axe: 'x', x: 701,  y: 385, w: 82,  d: 7,  allege: 0,  hauteur: 204, gond: 783, ouverture: -1 },
+    { id: 'porte-ch1',    type: 'porte',   nom: 'Porte chambre 1',   mur: 'ch1-bas',         axe: 'x', x: 706,  y: 278, w: 75,  d: 7,  allege: 0,  hauteur: 204, gond: 781, ouverture: -1 },
+    { id: 'porte-ch2',    type: 'porte',   nom: 'Porte chambre 2',   mur: 'ch2-wc',          axe: 'y', x: 788,  y: 287, w: 8,   d: 88, allege: 0,  hauteur: 204, gond: 287, ouverture: +1 },
+    { id: 'baie-sejour',  type: 'baie',    nom: 'Baie du séjour (2 vantaux coulissants)', mur: 'facade-terrasse', axe: 'x', x: 367,  y: 577, w: 198, d: 72, allege: 0,  hauteur: 215, faceInterieure: 577 },
+    { id: 'fenetre-ch2',  type: 'fenetre', nom: 'Fenêtre chambre 2', mur: 'facade-terrasse', axe: 'x', x: 893,  y: 577, w: 100, d: 72, allege: 90, hauteur: 135, faceInterieure: 577 },
+    { id: 'fenetre-ch1',  type: 'fenetre', nom: 'Fenêtre chambre 1', mur: 'facade-droite',   axe: 'y', x: 1110, y: 161, w: 60,  d: 100, allege: 90, hauteur: 135, faceInterieure: 1110 }
+  ],
+
+  // Pièces : rect = [x0, y0, x1, y1] (intérieur) ou poly = liste de sommets [x, y].
+  rooms: [
+    { id: 'sejour', nom: 'Séjour / cuisine', surfaceOfficielle: 30.11, emprise: [642, 577], label: [330, 420],
+      poly: [[0, 218], [119, 218], [119, 226], [193, 226], [193, 0], [494, 0], [494, 285], [788, 285], [788, 385], [642, 385], [642, 577], [0, 577]],
+      note: 'emprise 642 × 577 moins entrée, bloc placard et bloc salle d\'eau, plus dégagement (inclus)' },
+    { id: 'entree',     nom: 'Entrée',      surfaceOfficielle: 2.64,  rect: [0, 0, 119, 218], label: [60, 150] },
+    { id: 'placard',    nom: 'Placard',     surfaceOfficielle: 1.29,  rect: [119, 0, 186, 167], label: [152, 60] },
+    { id: 'sde',        nom: "Salle d'eau", surfaceOfficielle: 5.15,  rect: [501, 0, 691, 278], fermee: true },
+    { id: 'degagement', nom: 'Dégagement',  surfaceOfficielle: null,  rect: [649, 285, 788, 385], inclusDans: 'sejour' },
+    { id: 'wc',         nom: 'WC',          surfaceOfficielle: 2.23,  rect: [649, 392, 788, 577], fermee: true },
+    { id: 'ch1',        nom: 'Chambre 1',   surfaceOfficielle: 11.58, rect: [706, 0, 1110, 278], fermee: true },
+    { id: 'ch2',        nom: 'Chambre 2',   surfaceOfficielle: 9.37,  rect: [796, 285, 1110, 577], fermee: true },
+    { id: 'terrasse',   nom: 'Terrasse',    surfaceOfficielle: 8.40,  rect: [260, 649, 675, 849], exterieur: true, epaisseur: 2 }
+  ],
+
+  // Équipements fixes (calque désactivé par défaut). z0 / z1 = bas / haut en cm.
+  fixtures: [
+    { id: 'cuisine-frigo',   nom: 'Colonne frigo',          x: 193, y: 0,   w: 61,  d: 63, z0: 0,   z1: 200, mat: 'facade' },
+    { id: 'cuisine-cuisson', nom: 'Cuisson',                x: 254, y: 0,   w: 87,  d: 63, z0: 0,   z1: 90,  mat: 'facade', planDeTravail: true, detail: 'plaque' },
+    { id: 'cuisine-evier',   nom: 'Évier',                  x: 341, y: 0,   w: 89,  d: 63, z0: 0,   z1: 90,  mat: 'facade', planDeTravail: true, detail: 'evier' },
+    { id: 'cuisine-lv',      nom: 'Lave-vaisselle',         x: 430, y: 0,   w: 64,  d: 63, z0: 0,   z1: 90,  mat: 'facade', planDeTravail: true },
+    { id: 'chaudiere',       nom: 'Chaudière murale',       x: 121, y: 167, w: 65,  d: 25, z0: 120, z1: 190, mat: 'blanc' },
+    { id: 'gtl',             nom: 'GTL (tableau électrique)', x: 121, y: 193, w: 65, d: 26, z0: 0,   z1: 250, mat: 'blanc' },
+    { id: 'douche',          nom: "Douche à l'italienne (receveur extra-plat)", x: 522, y: 0, w: 117, d: 87, z0: 0, z1: 3, mat: 'ceramique' },
+    { id: 'gaine-sde',       nom: 'Gaine technique',        x: 501, y: 61,  w: 16,  d: 22, z0: 0,   z1: 250, mat: 'mur' },
+    { id: 'lavabo',          nom: 'Lavabo',                 x: 501, y: 167, w: 43,  d: 51, z0: 70,  z1: 85,  mat: 'ceramique' },
+    { id: 'ballon-ecs',      nom: "Ballon d'eau chaude",    x: 501, y: 218, w: 23,  d: 60, z0: 0,   z1: 160, mat: 'blanc' },
+    { id: 'lave-linge',      nom: 'Lave-linge',             x: 524, y: 218, w: 35,  d: 60, z0: 0,   z1: 85,  mat: 'blanc' },
+    { id: 'wc-cuvette',      nom: 'WC suspendu, cuvette',   x: 670, y: 505, w: 36,  d: 45, z0: 25,  z1: 40,  mat: 'ceramique' },
+    { id: 'wc-bati',         nom: 'WC suspendu, bâti',      x: 649, y: 552, w: 121, d: 25, z0: 0,   z1: 110, mat: 'mur' },
+    { id: 'wc-gaine',        nom: 'WC, gaine',              x: 770, y: 557, w: 18,  d: 20, z0: 0,   z1: 250, mat: 'mur' }
+  ],
+
+  // Points de vue prédéfinis (vue « visite », œil à meta.hauteurOeil) : depuis [x, y] vers [x, y, hauteur visée].
+  vues: [
+    { id: 'entree-baie',       nom: 'Entrée → baie',        depuis: [55, 210],  vers: [466, 577, 110] },
+    { id: 'baie-cuisine',      nom: 'Baie → cuisine',       depuis: [466, 545], vers: [343, 30, 100] },
+    { id: 'sejour-degagement', nom: 'Séjour → dégagement',  depuis: [330, 440], vers: [740, 320, 120] },
+    { id: 'chambre-1',         nom: 'Chambre 1',            depuis: [800, 250], vers: [1110, 60, 110] },
+    { id: 'chambre-2',         nom: 'Chambre 2',            depuis: [820, 310], vers: [1110, 577, 100] }
+  ]
+};
+/*GEO-END*/
+</script>
+<style>
+  :root {
+    --ink: #262a30; --muted: #6b717a; --line: #dfe2e6; --bg: #ffffff; --accent: #2f5d50;
+    --cote: #c2512b; --mes: #1565c0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e8ecef; color: var(--ink);
+    font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; touch-action: none; }
+  .labels { position: absolute; top: 0; left: 0; pointer-events: none; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  #bar { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; display: flex; gap: 8px; align-items: center; pointer-events: none; z-index: 5; }
+  #bar > * { pointer-events: auto; }
+  .seg { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .seg button { border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; font-weight: 600; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  #menu-btn { border: 0; background: var(--bg); border-radius: 10px; padding: 7px 12px; box-shadow: 0 1px 4px rgba(0,0,0,.15); font-weight: 600; }
+  #title { margin-left: auto; background: rgba(255,255,255,.85); border-radius: 8px; padding: 5px 10px; font-size: 12px; color: var(--muted); }
+
+  #panel { position: fixed; top: calc(max(8px, env(safe-area-inset-top)) + 48px); left: 8px; width: 270px; max-height: calc(100% - 70px); overflow: auto;
+    background: rgba(255,255,255,.96); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.15); padding: 4px 12px 10px; z-index: 4; }
+  #panel.closed { display: none; }
+  #panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 6px; }
+  .views { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .views button, #measure-btn, #measure-clear { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 7px 8px; text-align: left; font-size: 13px; }
+  .views button:hover, #measure-btn:hover { border-color: var(--accent); }
+  .tg { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; user-select: none; }
+  .tg input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+  .tg.disabled { opacity: .45; }
+  #measure-btn.on { background: var(--mes); color: #fff; border-color: var(--mes); }
+  #measure-btn:disabled { opacity: .45; cursor: default; }
+  .tools { display: flex; gap: 6px; }
+  #measure-out { margin-top: 6px; font-size: 13px; color: var(--mes); font-weight: 600; min-height: 1em; }
+  #help { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  #totals { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+
+  #compass { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); width: 58px; height: 58px; z-index: 3;
+    background: rgba(255,255,255,.9); border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+  #compass svg { width: 100%; height: 100%; }
+  #hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 3; max-width: calc(100% - 180px);
+    background: rgba(38,42,48,.82); color: #fff; font-size: 12px; padding: 6px 12px; border-radius: 8px; text-align: center; }
+  #hint:empty { display: none; }
+  #joy { position: fixed; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom)); width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.8); z-index: 3; display: none; touch-action: none; }
+  #joy.show { display: block; }
+  #knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  #cross { position: fixed; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 2px solid rgba(255,255,255,.9); box-shadow: 0 0 2px rgba(0,0,0,.5); z-index: 3; display: none; }
+  #cross.show { display: block; }
+  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); z-index: 10; background: #e8ecef; }
+  #loading.hide { display: none; }
+
+  .lbl-room { font-size: 11px; line-height: 1.25; color: var(--ink); background: rgba(255,255,255,.85); padding: 3px 7px; border-radius: 6px; text-align: center; white-space: nowrap; }
+  .lbl-room b { display: block; font-size: 12.5px; }
+  .lbl-room .ar { color: var(--muted); }
+  .lbl-cote { font-size: 11px; font-weight: 700; color: var(--cote); background: rgba(255,255,255,.8); padding: 0 3px; border-radius: 3px; white-space: nowrap; }
+  .lbl-op { font-size: 10.5px; font-weight: 600; color: #1f5f8b; background: rgba(255,255,255,.85); padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+  .lbl-mes { font-size: 13px; font-weight: 700; color: #fff; background: var(--mes); padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+
+  @media (max-width: 720px) {
+    #panel { width: calc(100% - 16px); max-height: 62%; }
+    #title { display: none; }
+    .seg button { padding: 7px 10px; }
+    #hint { max-width: calc(100% - 100px); left: auto; right: 80px; transform: none; }
+    .lbl-room { font-size: 9px; padding: 2px 5px; }
+    .lbl-room b { font-size: 10px; }
+    .lbl-room .dims { display: none; }
+    .lbl-cote { font-size: 9px; }
+    .lbl-op { font-size: 8.5px; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<header id="bar">
+  <div class="seg" id="modes">
+    <button data-mode="maquette" class="on">Maquette</button>
+    <button data-mode="visite">Visite</button>
+    <button data-mode="dessus">Dessus</button>
+  </div>
+  <button id="menu-btn" aria-label="Options">Options</button>
+  <div id="title">T3 lot 16 · 1 unité = 1 cm</div>
+</header>
+<aside id="panel">
+  <h3>Points de vue</h3>
+  <div class="views" id="views"></div>
+  <h3>Affichage</h3>
+  <label class="tg"><input type="checkbox" data-t="plafond"> Plafond</label>
+  <label class="tg"><input type="checkbox" data-t="equipements"> Équipements fixes</label>
+  <label class="tg"><input type="checkbox" data-t="cotes"> Cotes</label>
+  <label class="tg"><input type="checkbox" data-t="noms"> Noms des pièces</label>
+  <label class="tg" id="tg-coupe"><input type="checkbox" data-t="coupe"> Coupe des murs à 120 cm</label>
+  <h3>Outil</h3>
+  <div class="tools"><button id="measure-btn">Mesurer (2 clics au sol)</button><button id="measure-clear">Effacer</button></div>
+  <div id="measure-out"></div>
+  <div id="help"></div>
+  <div id="totals"></div>
+</aside>
+<div id="compass" title="Nord"><svg viewBox="-30 -30 60 60"><g id="needle"><path d="M0,-22 L7,4 L0,0 L-7,4 Z" fill="#c2512b"/><path d="M0,22 L7,4 L0,0 L-7,4 Z" fill="#9aa1aa"/><text x="0" y="-24" text-anchor="middle" font-size="9" font-weight="700" fill="#262a30" dominant-baseline="auto">N</text></g></svg></div>
+<div id="hint"></div>
+<div id="joy"><div id="knob"></div></div>
+<div id="cross"></div>
+<div id="loading">Chargement de la maquette…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ------------------------------------------------------------------ */
+/* Outils                                                              */
+/* ------------------------------------------------------------------ */
+const M = GEO.meta;
+const H = M.hauteurSousPlafond;
+const IN = M.interieur;
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const fmt = (n, d = 0) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const rectOf = o => ({ x0: o.x, y0: o.y, x1: o.x + o.w, y1: o.y + o.d });
+const byId = (list, id) => list.find(o => o.id === id);
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+
+function shoelace(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+}
+function roomArea(r) {
+  if (r.rect) { const [x0, y0, x1, y1] = r.rect; return (x1 - x0) * (y1 - y0); }
+  return shoelace(r.poly);
+}
+function roomCenter(r) {
+  if (r.label) return r.label;
+  if (r.rect) return [(r.rect[0] + r.rect[2]) / 2, (r.rect[1] + r.rect[3]) / 2];
+  const n = r.poly.length; return [r.poly.reduce((s, p) => s + p[0], 0) / n, r.poly.reduce((s, p) => s + p[1], 0) / n];
+}
+
+/* ------------------------------------------------------------------ */
+/* Rendu                                                               */
+/* ------------------------------------------------------------------ */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+app.appendChild(renderer.domElement);
+const canvas = renderer.domElement;
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(innerWidth, innerHeight);
+labelRenderer.domElement.className = 'labels';
+app.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe8ecef);
+
+const groups = {};
+for (const n of ['structure', 'menuiseries', 'plinthes', 'plafond', 'equipements', 'cotes', 'pieces', 'coupe', 'mesure', 'exterieur', 'sol']) {
+  groups[n] = new THREE.Group(); groups[n].name = n; scene.add(groups[n]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Matériaux                                                           */
+/* ------------------------------------------------------------------ */
+const clipPlane = new THREE.Plane(V3(0, -1, 0), M.coupe);
+const clippable = [];
+function std(p, clip = true) { const m = new THREE.MeshStandardMaterial(p); if (clip) clippable.push(m); return m; }
+const MAT = {
+  mur:        std({ color: 0xF2EFE9, roughness: 0.92 }),
+  plafond:    std({ color: 0xFFFFFF, roughness: 0.95 }, false),
+  plinthe:    std({ color: 0xFFFFFF, roughness: 0.55 }),
+  menuiserie: std({ color: 0xFFFFFF, roughness: 0.45 }),
+  poignee:    std({ color: 0x1d1d1d, roughness: 0.7, metalness: 0.1 }),
+  verre:      std({ color: 0xcfe3ea, roughness: 0.05, transparent: true, opacity: 0.2, depthWrite: false }),
+  seuil:      std({ color: 0xbdb8ae, roughness: 0.85 }, false),
+  facade:     std({ color: 0x9DAE93, roughness: 0.9 }),
+  chene:      std({ color: 0xD8BC90, roughness: 0.6 }),
+  blanc:      std({ color: 0xF7F7F5, roughness: 0.5 }),
+  ceramique:  std({ color: 0xFCFCFC, roughness: 0.25 }),
+  noir:       std({ color: 0x1b1b1b, roughness: 0.3 }),
+  inox:       std({ color: 0xa3a8ab, roughness: 0.3, metalness: 0.6 }),
+  terrasse:   new THREE.MeshStandardMaterial({ color: 0xA9875F, roughness: 0.85 }),
+  solExt:     new THREE.MeshStandardMaterial({ color: 0xc8c4ba, roughness: 1 }),
+  coupe:      new THREE.MeshBasicMaterial({ color: 0x3a3f47 })
+};
+
+function parquetTexture() {
+  const S = 1024, TILE = 200, CM = S / TILE;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const pw = M.parquet.largeurLame * CM;
+  const cols = Math.round(TILE / M.parquet.largeurLame);
+  const drawPlank = (x, y, w, h) => {
+    const l = 74 + rnd() * 7, s = 38 + rnd() * 10, hue = 33 + rnd() * 5;
+    g.fillStyle = `hsl(${hue},${s}%,${l}%)`; g.fillRect(x, y, w, h);
+    for (let k = 0; k < 22; k++) {
+      const gx = x + 3 + rnd() * (w - 6), a = 0.04 + rnd() * 0.08, amp = 1 + rnd() * 3, ph = rnd() * 6;
+      g.strokeStyle = `rgba(120,85,45,${a})`; g.lineWidth = 0.6 + rnd() * 1.2; g.beginPath();
+      for (let yy = 0; yy <= h; yy += 16) g.lineTo(gx + Math.sin(yy / 90 + ph) * amp, y + yy);
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(95,65,35,.38)'; g.lineWidth = 1.6; g.strokeRect(x + 0.8, y + 0.8, w - 1.6, h - 1.6);
+  };
+  for (let i = 0; i < cols; i++) {
+    const lens = []; let tot = 0;
+    while (tot < S) { const L = (M.parquet.longueurMin + rnd() * (M.parquet.longueurMax - M.parquet.longueurMin)) * CM; lens.push(L); tot += L; }
+    lens[lens.length - 1] -= (tot - S);
+    if (lens[lens.length - 1] < M.parquet.longueurMin * CM * 0.5 && lens.length > 1) { const last = lens.pop(); lens[lens.length - 1] += last; }
+    let y = rnd() * S;
+    for (const L of lens) {
+      drawPlank(i * pw, y, pw, L);
+      if (y + L > S) drawPlank(i * pw, y - S, pw, L);
+      y = (y + L) % S;
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+/* ------------------------------------------------------------------ */
+/* Primitives                                                          */
+/* ------------------------------------------------------------------ */
+// Boîte en coordonnées plan : x0..x1, y0..y1 (plan), z0..z1 (hauteur)
+function boxMesh(x0, y0, x1, y1, z0, z1, material) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0), material);
+  m.position.set((x0 + x1) / 2, (z0 + z1) / 2, (y0 + y1) / 2);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+const wallMeshes = [];       // pour les lancers de rayons (QC, occultation des étiquettes)
+const collisionRects = [];   // pour la visite (2D)
+function addWallBox(r, z0, z1, kind, id) {
+  const m = boxMesh(r.x0, r.y0, r.x1, r.y1, z0, z1, MAT.mur);
+  m.userData = { kind, id }; m.name = `${kind}:${id}`;
+  groups.structure.add(m); wallMeshes.push(m);
+  return m;
+}
+function addCap(r) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(r.x1 - r.x0, r.y1 - r.y0), MAT.coupe);
+  m.rotation.x = -Math.PI / 2; m.position.set((r.x0 + r.x1) / 2, M.coupe + 0.05, (r.y0 + r.y1) / 2);
+  groups.coupe.add(m);
+}
+
+/* ------------------------------------------------------------------ */
+/* Murs                                                                */
+/* ------------------------------------------------------------------ */
+for (const w of GEO.walls) {
+  const r = rectOf(w);
+  addWallBox(r, 0, H, 'mur', w.id);
+  addCap(r);
+  collisionRects.push({ ...r, src: w.id });
+}
+
+/* ------------------------------------------------------------------ */
+/* Ouvertures                                                          */
+/* ------------------------------------------------------------------ */
+function opFrame(op) {
+  const ax = op.axe;
+  const u0 = ax === 'x' ? op.x : op.y, u1 = ax === 'x' ? op.x + op.w : op.y + op.d;
+  const t0 = ax === 'x' ? op.y : op.x, t1 = ax === 'x' ? op.y + op.d : op.x + op.w;
+  const box = (ua, ub, ta, tb, za, zb, mat) => {
+    const a0 = Math.min(ua, ub), a1 = Math.max(ua, ub), b0 = Math.min(ta, tb), b1 = Math.max(ta, tb);
+    return ax === 'x' ? boxMesh(a0, b0, a1, b1, za, zb, mat) : boxMesh(b0, a0, b1, a1, za, zb, mat);
+  };
+  const pt = (u, t, h = 0) => ax === 'x' ? V3(u, h, t) : V3(t, h, u);
+  return { u0, u1, t0, t1, box, pt };
+}
+
+const doorInfo = {};
+function buildDoor(op, g) {
+  const F = opFrame(op), P = M.porte;
+  const W = F.u1 - F.u0, e = P.epaisseurVantail, s = op.ouverture;
+  const dirU = op.gond === F.u0 ? 1 : -1;          // du gond vers l'autre tableau
+  const pivotT = s > 0 ? F.t1 : F.t0;               // nu du mur côté ouverture
+  const leaf = F.box(op.gond, op.gond + dirU * e, pivotT, pivotT + s * W, P.jeuSol, op.hauteur, MAT.menuiserie);
+  leaf.userData = { kind: 'vantail', id: op.id }; leaf.name = 'vantail:' + op.id;
+  g.add(leaf);
+  const hp = P.hauteurPoignee, tH = pivotT + s * (W - P.poigneeDuChant), uC = op.gond + dirU * e / 2;
+  for (const side of [-1, 1]) {
+    const uf = uC + side * e / 2;
+    g.add(F.box(uf, uf + side * 1, tH - 2.5, tH + 2.5, hp - 2.5, hp + 2.5, MAT.poignee));          // rosace
+    g.add(F.box(uf + side * 1, uf + side * 5.5, tH - 0.9, tH + 0.9, hp - 0.9, hp + 0.9, MAT.poignee)); // tige
+    g.add(F.box(uf + side * 4.5, uf + side * 6.5, tH, tH - s * 13, hp - 1, hp + 1, MAT.poignee));     // béquille
+  }
+  // arc du débattement (calque cotes)
+  const pts = [];
+  for (let a = 0; a <= 90; a += 3) { const r = a * Math.PI / 180; pts.push(F.pt(op.gond + dirU * W * Math.cos(r), pivotT + s * W * Math.sin(r), 0.8)); }
+  const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: 0x6b717a, dashSize: 6, gapSize: 5 }));
+  arc.computeLineDistances(); groups.cotes.add(arc);
+  doorInfo[op.id] = { gond: op.axe === 'x' ? { x: op.gond, y: pivotT } : { x: pivotT, y: op.gond }, largeurVantail: W };
+}
+
+function buildWindow(op, g) {
+  const F = opFrame(op), MM = M.menuiserie;
+  const f = op.faceInterieure, s = ((F.t0 + F.t1) / 2 > f) ? 1 : -1;
+  const D = MM.profondeurDormant, P = MM.largeurDormant, PS = MM.largeurOuvrant;
+  const z0 = op.allege, z1 = op.allege + op.hauteur;
+  const pb = op.type === 'baie' ? MM.seuilBaie : P;
+  const add = (m, kind) => { m.userData = { kind, id: op.id }; g.add(m); return m; };
+  // dormant, au nu intérieur
+  add(F.box(F.u0, F.u0 + P, f, f + s * D, z0, z1, MAT.menuiserie), 'dormant');
+  add(F.box(F.u1 - P, F.u1, f, f + s * D, z0, z1, MAT.menuiserie), 'dormant');
+  add(F.box(F.u0, F.u1, f, f + s * D, z1 - P, z1, MAT.menuiserie), 'dormant');
+  add(F.box(F.u0, F.u1, f, f + s * D, z0, z0 + pb, MAT.menuiserie), 'dormant');
+  const ui0 = F.u0 + P, ui1 = F.u1 - P, zi0 = z0 + pb, zi1 = z1 - P;
+  const sash = (ua, ub, ta, tb) => {
+    add(F.box(ua, ua + PS, ta, tb, zi0, zi1, MAT.menuiserie), 'ouvrant');
+    add(F.box(ub - PS, ub, ta, tb, zi0, zi1, MAT.menuiserie), 'ouvrant');
+    add(F.box(ua, ub, ta, tb, zi1 - PS, zi1, MAT.menuiserie), 'ouvrant');
+    add(F.box(ua, ub, ta, tb, zi0, zi0 + PS, MAT.menuiserie), 'ouvrant');
+    const tm = (ta + tb) / 2;
+    const gl = add(F.box(ua + PS, ub - PS, tm - 0.3, tm + 0.3, zi0 + PS, zi1 - PS, MAT.verre), 'vitrage');
+    gl.castShadow = false;
+  };
+  let uh;
+  if (op.type === 'baie') {
+    const sw = (ui1 - ui0) / 2 + MM.recouvrementCoulissant / 2;
+    sash(ui0, ui0 + sw, f + s * 0.5, f + s * 3.2);
+    sash(ui1 - sw, ui1, f + s * 3.8, f + s * 6.5);
+    uh = ui0 + sw - PS / 2;
+    add(F.box(uh - 1, uh + 1, f + s * 0.5, f - s * 1.5, 95, 115, MAT.poignee), 'poignee');
+  } else {
+    const sw = (ui1 - ui0) / 2;
+    sash(ui0, ui0 + sw, f + s * 1, f + s * 6);
+    sash(ui0 + sw, ui1, f + s * 1, f + s * 6);
+    uh = ui0 + sw - PS / 2;
+    const zh = z0 + op.hauteur / 2;
+    add(F.box(uh - 1, uh + 1, f + s * 1, f - s * 1.5, zh - 2, zh + 10, MAT.poignee), 'poignee');
+  }
+}
+
+for (const op of GEO.openings) {
+  const r = rectOf(op);
+  const top = op.allege + op.hauteur;
+  if (top < H) addWallBox(r, top, H, 'linteau', op.id);
+  if (op.allege > 0) addWallBox(r, 0, op.allege, 'allege', op.id);
+  const g = new THREE.Group(); g.name = 'ouverture:' + op.id; g.userData = { id: op.id };
+  groups.menuiseries.add(g);
+  if (op.type === 'porte') buildDoor(op, g); else buildWindow(op, g);
+  // on ne sort pas par les fenêtres ni par la porte d'entrée en visite
+  if (op.type !== 'porte' || op.id === 'porte-entree') collisionRects.push({ ...r, src: op.id });
+}
+
+/* ------------------------------------------------------------------ */
+/* Sols, seuils, terrasse, plafond                                    */
+/* ------------------------------------------------------------------ */
+const parquetTex = parquetTexture();
+parquetTex.repeat.set((IN.x1 - IN.x0) / 200, (IN.y1 - IN.y0) / 200);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(IN.x1 - IN.x0, IN.y1 - IN.y0),
+  new THREE.MeshStandardMaterial({ map: parquetTex, roughness: 0.55 }));
+floor.rotation.x = -Math.PI / 2; floor.position.set((IN.x0 + IN.x1) / 2, 0, (IN.y0 + IN.y1) / 2);
+floor.receiveShadow = true; floor.name = 'parquet';
+groups.sol.add(floor);
+// seuils de la porte d'entrée et de la baie (affleurants)
+for (const id of ['porte-entree', 'baie-sejour']) {
+  const r = rectOf(byId(GEO.openings, id));
+  groups.sol.add(boxMesh(r.x0, r.y0, r.x1, r.y1, -3, 0, MAT.seuil));
+}
+// sol extérieur et terrasse
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), MAT.solExt);
+ground.rotation.x = -Math.PI / 2; ground.position.set(555, -0.6, 300); ground.receiveShadow = true;
+groups.exterieur.add(ground);
+const terr = byId(GEO.rooms, 'terrasse');
+{
+  const [x0, y0, x1, y1] = terr.rect;
+  const deck = boxMesh(x0, y0, x1, y1, 0, terr.epaisseur, MAT.terrasse); deck.name = 'terrasse';
+  groups.exterieur.add(deck);
+  const lines = [];
+  for (let x = x0 + 14.5; x < x1; x += 14.5) lines.push(V3(x, terr.epaisseur + 0.1, y0), V3(x, terr.epaisseur + 0.1, y1));
+  groups.exterieur.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lines), new THREE.LineBasicMaterial({ color: 0x7d6246 })));
+}
+// plafond (dalle graphique au-dessus de 250)
+{
+  const slab = boxMesh(-17, -33, 1170, 649, H, H + M.plafondEpaisseurGraphique, MAT.plafond);
+  slab.name = 'plafond'; groups.plafond.add(slab);
+}
+
+/* ------------------------------------------------------------------ */
+/* Plinthes (générées le long des faces de murs donnant sur l'intérieur) */
+/* ------------------------------------------------------------------ */
+{
+  const PH = M.plinthe.hauteur, PE = M.plinthe.epaisseur;
+  const solids = [...GEO.walls.map(rectOf), ...GEO.openings.filter(o => o.allege > 0).map(rectOf)];
+  const doors = GEO.openings.filter(o => o.type === 'porte').map(rectOf);
+  const inR = (r, x, y) => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1;
+  const ok = (x, y) => x > IN.x0 && x < IN.x1 && y > IN.y0 && y < IN.y1 && !solids.some(r => inR(r, x, y)) && !doors.some(r => inR(r, x, y));
+  const used = new Set();
+  for (const r of solids) {
+    const faces = [
+      { ax: 'x', c: r.y0, n: -1, a0: r.x0, a1: r.x1 }, { ax: 'x', c: r.y1, n: 1, a0: r.x0, a1: r.x1 },
+      { ax: 'y', c: r.x0, n: -1, a0: r.y0, a1: r.y1 }, { ax: 'y', c: r.x1, n: 1, a0: r.y0, a1: r.y1 }
+    ];
+    for (const fc of faces) {
+      let start = null;
+      const flush = (end) => {
+        if (start === null) return;
+        const m = fc.ax === 'x'
+          ? boxMesh(start, Math.min(fc.c, fc.c + fc.n * PE), end, Math.max(fc.c, fc.c + fc.n * PE), 0, PH, MAT.plinthe)
+          : boxMesh(Math.min(fc.c, fc.c + fc.n * PE), start, Math.max(fc.c, fc.c + fc.n * PE), end, 0, PH, MAT.plinthe);
+        m.castShadow = false; groups.plinthes.add(m); start = null;
+      };
+      for (let a = Math.floor(fc.a0); a < fc.a1; a++) {
+        const mid = a + 0.5;
+        const key = `${fc.ax}|${fc.c}|${fc.n}|${a}`;
+        const p = fc.ax === 'x' ? [mid, fc.c + fc.n * 0.5] : [fc.c + fc.n * 0.5, mid];
+        const good = !used.has(key) && ok(p[0], p[1]);
+        if (good) { used.add(key); if (start === null) start = a; }
+        else flush(a);
+      }
+      flush(fc.a1);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Équipements fixes                                                   */
+/* ------------------------------------------------------------------ */
+const fixtureRects = [];
+for (const fx of GEO.fixtures) {
+  const r = rectOf(fx);
+  const g = new THREE.Group(); g.name = 'equipement:' + fx.id; groups.equipements.add(g);
+  const mat = MAT[fx.mat] || MAT.blanc;
+  if (fx.planDeTravail) {
+    const ep = M.cuisine.epaisseurPlan;
+    g.add(boxMesh(r.x0, r.y0, r.x1, r.y1, fx.z0, fx.z1 - ep, mat));
+    g.add(boxMesh(r.x0, r.y0, r.x1, r.y1, fx.z1 - ep, fx.z1, MAT.chene));
+    // joint de façade (lecture des modules)
+    g.add(boxMesh(r.x0 + 0.5, r.y1, r.x1 - 0.5, r.y1 + 0.2, 10, fx.z1 - ep - 2, mat));
+    if (fx.detail === 'plaque') g.add(boxMesh(r.x0 + 15, r.y0 + 6, r.x1 - 15, r.y1 - 8, fx.z1, fx.z1 + 0.6, MAT.noir));
+    if (fx.detail === 'evier') g.add(boxMesh(r.x0 + 18, r.y0 + 10, r.x1 - 18, r.y1 - 12, fx.z1, fx.z1 + 0.3, MAT.inox));
+  } else {
+    g.add(boxMesh(r.x0, r.y0, r.x1, r.y1, fx.z0, fx.z1, mat));
+  }
+  if (fx.z0 < 170 && fx.z1 > 20) fixtureRects.push({ ...r, src: fx.id });
+  // remplissage de coupe pour les équipements traversant le plan de coupe
+  if (fx.z0 <= M.coupe && fx.z1 > M.coupe) {
+    const capColor = fx.mat === 'mur' ? MAT.coupe.color : (MAT[fx.mat] || MAT.blanc).color.clone().multiplyScalar(0.82);
+    const cap = new THREE.Mesh(new THREE.PlaneGeometry(r.x1 - r.x0, r.y1 - r.y0), new THREE.MeshBasicMaterial({ color: capColor }));
+    cap.rotation.x = -Math.PI / 2; cap.position.set((r.x0 + r.x1) / 2, M.coupe + 0.05, (r.y0 + r.y1) / 2);
+    cap.userData.capCoupe = true; g.add(cap);
+  }
+}
+groups.equipements.visible = false;
+
+/* ------------------------------------------------------------------ */
+/* Étiquettes des pièces                                               */
+/* ------------------------------------------------------------------ */
+const roomLabels = [];
+let totalCalc = 0, totalOff = 0;
+for (const r of GEO.rooms) {
+  const a = roomArea(r);
+  if (!r.exterieur && !r.inclusDans) { totalCalc += a; totalOff += r.surfaceOfficielle || 0; }
+  const [cx, cy] = roomCenter(r);
+  const el = document.createElement('div'); el.className = 'lbl-room';
+  const dims = r.rect ? `${r.rect[2] - r.rect[0]} × ${r.rect[3] - r.rect[1]}` : `emprise ${r.emprise[0]} × ${r.emprise[1]}`;
+  el.innerHTML = `<b>${r.nom}</b><span class="dims">${dims}<br></span><span class="ar">${fmt(a / 1e4, 2)} m²${r.surfaceOfficielle ? ` · plan ${fmt(r.surfaceOfficielle, 2)}` : ''}${r.inclusDans ? ' · inclus séjour' : ''}</span>`;
+  const o = new CSS2DObject(el); o.position.set(cx, 2, cy); o.userData = { id: r.id, exterieur: !!r.exterieur };
+  groups.pieces.add(o); roomLabels.push(o);
+}
+document.getElementById('totals').innerHTML =
+  `Surface habitable calculée : <b>${fmt(totalCalc / 1e4, 2)} m²</b> (plan : ${fmt(totalOff, 2)} m²)<br>Nord à ${M.nordDegres}° à droite du haut du plan.`;
+
+/* ------------------------------------------------------------------ */
+/* Cotes                                                               */
+/* ------------------------------------------------------------------ */
+const ZC = H + M.plafondEpaisseurGraphique + 3;
+const coteMat = new THREE.LineBasicMaterial({ color: 0xc2512b });
+const chainLabels = [];
+// position des étiquettes de cotes de part et d'autre de la ligne, selon l'orientation de la vue de dessus
+function placeChainLabels(rotated) {
+  for (const o of chainLabels) {
+    const { axis, side } = o.userData;
+    if (!rotated) o.center.set(...(axis === 'x' ? [0.5, side < 0 ? 1.15 : -0.15] : [side < 0 ? 1.1 : -0.1, 0.5]));
+    else o.center.set(...(axis === 'x' ? [side < 0 ? 1.1 : -0.1, 0.5] : [0.5, side < 0 ? -0.15 : 1.15]));
+  }
+}
+function cssLabel(text, cls, pos, cx = 0.5, cy = 0.5) {
+  const el = document.createElement('div'); el.className = cls; el.textContent = text;
+  const o = new CSS2DObject(el); o.position.copy(pos); o.center.set(cx, cy); return o;
+}
+function chain(points, axis, at, suffix = '', side = -1) {
+  // axis 'x' : chaîne horizontale à y = at ; axis 'y' : chaîne verticale à x = at
+  const P = (a, b) => axis === 'x' ? V3(a, ZC, b) : V3(b, ZC, a);
+  const segs = [P(points[0], at), P(points[points.length - 1], at)];
+  for (const p of points) {
+    const k = 6;
+    segs.push(P(p - k, at - k), P(p + k, at + k));  // trait oblique
+    segs.push(P(p, at - 10), P(p, at + 10));         // repère perpendiculaire
+  }
+  groups.cotes.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segs), coteMat));
+  for (let i = 0; i < points.length - 1; i++) {
+    const v = points[i + 1] - points[i];
+    const txt = (Number.isInteger(v) ? v : fmt(v, 1)) + suffix;
+    const pos = P((points[i] + points[i + 1]) / 2, at);
+    const o = cssLabel(txt, 'lbl-cote', pos); o.userData = { axis, side };
+    chainLabels.push(o); groups.cotes.add(o);
+  }
+}
+{
+  const W = id => rectOf(byId(GEO.walls, id)), O = id => rectOf(byId(GEO.openings, id)), R = id => byId(GEO.rooms, id).rect;
+  const yTop = W('couloir-d').y0 - 45, yBot = R('terrasse')[3] + 45;
+  chain([O('porte-entree').x0, O('porte-entree').x1, W('placard-bas').x0, W('placard-droit').x1, W('sde-gauche').x0, W('sde-ch1-double').x1, IN.x1], 'x', yTop);
+  chain([IN.x0, IN.x1], 'x', yTop - 50, ' intérieur total');
+  chain([IN.x0, O('baie-sejour').x0, O('baie-sejour').x1, W('wc-gauche').x0, O('fenetre-ch2').x0, O('fenetre-ch2').x1, IN.x1], 'x', yBot, '', 1);
+  chain([IN.x0, W('wc-gauche').x0], 'x', yBot + 50, ' largeur séjour', 1);
+  const xL = W('mitoyen-g').x0 - 45, xR = W('facade-droite-1').x1 + 45;
+  chain([IN.y0, R('entree')[3], IN.y1], 'y', xL);
+  chain([IN.y0, O('fenetre-ch1').y0, O('fenetre-ch1').y1, IN.y1], 'y', xR, '', 1);
+  chain([IN.y0, W('ch1-bas').y0, W('ch1-bas').y1, IN.y1], 'y', xR + 70, '', 1);
+  // profondeur du bloc salle d'eau, côté séjour
+  chain([IN.y0, W('sde-bas-g').y1], 'y', W('sde-gauche').x0 - 25);
+  // largeur des ouvertures
+  for (const op of GEO.openings) {
+    const r = rectOf(op);
+    const txt = (op.type === 'porte' ? 'P ' : op.type === 'baie' ? 'baie ' : 'F ') + (op.axe === 'x' ? op.w : op.d)
+      + (innerWidth < 720 ? '' : (op.allege ? ` · all. ${op.allege}` : '') + ` · h ${op.hauteur}`);
+    // porte sur un mur vertical : étiquette à droite du mur pour ne pas masquer le dégagement
+    if (op.axe === 'y' && op.type === 'porte') groups.cotes.add(cssLabel(txt, 'lbl-op', V3(r.x1 + 4, ZC, (r.y0 + r.y1) / 2), 0, 0.5));
+    else groups.cotes.add(cssLabel(txt, 'lbl-op', V3((r.x0 + r.x1) / 2, ZC, (r.y0 + r.y1) / 2)));
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Lumières                                                            */
+/* ------------------------------------------------------------------ */
+const hemi = new THREE.HemisphereLight(0xffffff, 0xf1ece4, 2.2);
+scene.add(hemi);
+// lumière d'appoint sans ombre (côté ouest) pour différencier l'orientation des parois
+const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+fill.position.set(-1500, 900, -900); fill.target.position.set(555, 0, 300);
+scene.add(fill, fill.target);
+const sun = new THREE.DirectionalLight(0xfff3e2, 2.0);
+// soleil du matin venant de l'est / sud-est, à travers la baie (bas du plan)
+sun.position.set(466 + 250, 560, 577 + 900);
+sun.target.position.set(560, 0, 260);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -950, right: 950, top: 950, bottom: -950, near: 100, far: 3500 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 1.2;
+scene.add(sun, sun.target);
+
+/* ------------------------------------------------------------------ */
+/* Caméras et contrôles                                                */
+/* ------------------------------------------------------------------ */
+const CENTER = V3(555, 0, 300);
+const perspCam = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 10, 40000);
+perspCam.position.set(-260, 1250, 1500);
+const orbit = new OrbitControls(perspCam, canvas);
+orbit.target.copy(CENTER); orbit.enableDamping = true; orbit.dampingFactor = 0.12;
+orbit.maxPolarAngle = Math.PI / 2 - 0.03; orbit.minDistance = 80; orbit.maxDistance = 7000;
+orbit.zoomToCursor = true;
+orbit.update();
+
+const visitCam = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 5, 40000);
+const plc = new PointerLockControls(visitCam, document.body);
+plc.pointerSpeed = 0.8; plc.minPolarAngle = 0.12; plc.maxPolarAngle = Math.PI - 0.12;
+
+const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 20000);
+const TOP_BOX = { x0: -170, y0: -190, x1: 1370, y1: 960 };
+const topCx = (TOP_BOX.x0 + TOP_BOX.x1) / 2, topCy = (TOP_BOX.y0 + TOP_BOX.y1) / 2;
+orthoCam.up.set(0, 0, -1);
+orthoCam.position.set(topCx, 5000, topCy);
+const orbitTop = new OrbitControls(orthoCam, canvas);
+orbitTop.target.set(topCx, 0, topCy);
+orbitTop.enableRotate = false; orbitTop.screenSpacePanning = true; orbitTop.zoomToCursor = true;
+orbitTop.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+orbitTop.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+orbitTop.minZoom = 0.3; orbitTop.maxZoom = 25;
+orbitTop.update();
+
+// Le panneau d'options occupe la gauche sur grand écran : on décale le centre optique
+// des caméras pour que la maquette reste centrée dans la zone libre (aucune déformation).
+const panelEl = document.getElementById('panel');
+function panelInset() {
+  return (!panelEl.classList.contains('closed') && innerWidth >= 720) ? panelEl.getBoundingClientRect().right + 8 : 0;
+}
+function layoutCams() {
+  const W = innerWidth, Hh = innerHeight, inset = panelInset(), Wf = W - inset;
+  const hfov = 80 * Math.PI / 180;
+  visitCam.fov = Math.min(90, Math.max(58, 2 * Math.atan(Math.tan(hfov / 2) / (Wf / Hh)) * 180 / Math.PI));
+  for (const cam of [perspCam, visitCam]) {
+    cam.aspect = (W + inset) / Hh;
+    if (inset) cam.setViewOffset(W + inset, Hh, 0, 0, W, Hh); else cam.clearViewOffset();
+    cam.updateProjectionMatrix();
+  }
+  // téléphone en portrait : plan pivoté d'un quart de tour (x vers le haut, terrasse à droite)
+  const rot = W < 720 && Hh > W * 1.15;
+  orthoCam.up.set(rot ? 1 : 0, 0, rot ? 0 : -1);
+  orthoCam.lookAt(orbitTop.target);
+  placeChainLabels(rot);
+  let bw = TOP_BOX.x1 - TOP_BOX.x0, bh = TOP_BOX.y1 - TOP_BOX.y0;
+  if (rot) [bw, bh] = [bh, bw];
+  const s = Math.max(bw / Wf, bh / Hh);           // cm par pixel
+  orthoCam.right = Wf * s / 2; orthoCam.left = -Wf * s / 2 - inset * s;
+  orthoCam.top = Hh * s / 2; orthoCam.bottom = -Hh * s / 2;
+  orthoCam.updateProjectionMatrix();
+  document.getElementById('cross').style.left = ((W + inset) / 2) + 'px';
+}
+
+/* ------------------------------------------------------------------ */
+/* État, modes et calques                                              */
+/* ------------------------------------------------------------------ */
+let mode = 'maquette';
+const modeState = { maquette: { plafond: false, coupe: false }, visite: { plafond: true, coupe: false }, dessus: { plafond: false, coupe: true } };
+const state = { equipements: false, cotes: false, noms: true };
+const ui = {
+  panel: document.getElementById('panel'), hint: document.getElementById('hint'), help: document.getElementById('help'),
+  joy: document.getElementById('joy'), knob: document.getElementById('knob'), cross: document.getElementById('cross'),
+  mBtn: document.getElementById('measure-btn'), mOut: document.getElementById('measure-out'), needle: document.getElementById('needle')
+};
+const activeCam = () => mode === 'visite' ? visitCam : mode === 'dessus' ? orthoCam : perspCam;
+
+function applyState() {
+  const ms = modeState[mode];
+  groups.plafond.visible = ms.plafond && !ms.coupe;
+  for (const m of clippable) { m.clippingPlanes = ms.coupe ? [clipPlane] : []; m.clipShadows = ms.coupe; m.needsUpdate = true; }
+  // vue de dessus : lecture de plan, ombres très atténuées
+  sun.intensity = mode === 'dessus' ? 0.5 : 2.0;
+  hemi.intensity = mode === 'dessus' ? 3.0 : 2.2;
+  groups.coupe.visible = ms.coupe;
+  groups.equipements.traverse(o => { if (o.userData.capCoupe) o.visible = ms.coupe; });
+  groups.equipements.visible = state.equipements;
+  groups.cotes.visible = state.cotes && mode !== 'visite';
+  groups.pieces.visible = state.noms;
+  // hauteur des étiquettes : au sol en vue de dessus, à hauteur d'œil en visite,
+  // au-dessus des murs (ou de la coupe) en vue maquette
+  for (const o of roomLabels) {
+    o.position.y = o.userData.exterieur || mode === 'dessus' ? 2 : mode === 'visite' ? 110 : (ms.coupe ? M.coupe : H) + 3;
+    o.visible = true;
+  }
+  for (const inp of document.querySelectorAll('[data-t]')) {
+    const k = inp.dataset.t;
+    inp.checked = k in ms ? ms[k] : state[k];
+  }
+  document.querySelector('[data-t="plafond"]').closest('.tg').classList.toggle('disabled', ms.coupe);
+  document.querySelector('[data-t="cotes"]').closest('.tg').classList.toggle('disabled', mode === 'visite');
+}
+function setToggle(k, v) {
+  if (k in modeState[mode]) modeState[mode][k] = v; else state[k] = v;
+  applyState();
+}
+for (const inp of document.querySelectorAll('[data-t]')) inp.addEventListener('change', () => setToggle(inp.dataset.t, inp.checked));
+
+const HELP = {
+  maquette: isTouch ? 'Un doigt : tourner · Deux doigts : zoomer et déplacer.' : 'Glisser : tourner · Clic droit : déplacer · Molette : zoom.',
+  visite: isTouch ? 'Joystick : avancer · Glisser ailleurs : regarder.' : 'Cliquez dans la vue pour regarder à la souris · ZQSD / flèches : se déplacer · Maj : plus vite · Échap : libérer la souris.',
+  dessus: isTouch ? 'Un doigt : déplacer · Deux doigts : zoomer. En portrait, le plan est pivoté d\'un quart de tour (terrasse à droite, voir la boussole).' : 'Glisser : déplacer · Molette : zoom.'
+};
+function setMode(m) {
+  if (m !== 'visite' && plc.isLocked) plc.unlock();
+  mode = m;
+  orbit.enabled = m === 'maquette';
+  orbitTop.enabled = m === 'dessus';
+  for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === m);
+  ui.joy.classList.toggle('show', m === 'visite' && isTouch);
+  ui.cross.classList.toggle('show', m === 'visite');
+  ui.mBtn.disabled = m === 'visite';
+  if (m === 'visite' && measure.active) toggleMeasure(false);
+  ui.help.textContent = HELP[m];
+  updateHint();
+  applyState();
+}
+function updateHint() {
+  if (measure.active) ui.hint.textContent = 'Mesure : cliquez deux points au sol (aimantation sur angles et faces de murs).';
+  else if (mode === 'visite' && !isTouch && !plc.isLocked) ui.hint.textContent = 'Cliquez dans la vue pour activer la souris · ZQSD / flèches pour marcher';
+  else ui.hint.textContent = '';
+}
+plc.addEventListener('lock', updateHint);
+plc.addEventListener('unlock', updateHint);
+for (const b of document.querySelectorAll('#modes button')) b.addEventListener('click', () => {
+  if (b.dataset.mode === 'visite' && mode !== 'visite' && !visitPlaced) goView(GEO.vues[0].id); else setMode(b.dataset.mode);
+});
+document.getElementById('menu-btn').addEventListener('click', () => { ui.panel.classList.toggle('closed'); layoutCams(); });
+if (innerWidth < 720) ui.panel.classList.add('closed');
+layoutCams();
+
+/* ------------------------------------------------------------------ */
+/* Points de vue                                                       */
+/* ------------------------------------------------------------------ */
+let visitPlaced = false;
+function goView(id) {
+  const v = byId(GEO.vues, id);
+  visitCam.position.set(v.depuis[0], M.hauteurOeil, v.depuis[1]);
+  visitCam.lookAt(v.vers[0], v.vers[2] ?? 120, v.vers[1]);
+  visitPlaced = true;
+  setMode('visite');
+  if (innerWidth < 720) { ui.panel.classList.add('closed'); layoutCams(); }
+}
+{
+  const box = document.getElementById('views');
+  for (const v of GEO.vues) {
+    const b = document.createElement('button'); b.textContent = v.nom; b.addEventListener('click', () => goView(v.id)); box.appendChild(b);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Visite : clavier, joystick, regard tactile, collisions             */
+/* ------------------------------------------------------------------ */
+const keys = {};
+const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', ShiftLeft: 'run', ShiftRight: 'run' };
+addEventListener('keydown', e => {
+  if (e.code === 'Escape' && measure.active) toggleMeasure(false);
+  const k = KEYMAP[e.code]; if (!k || mode !== 'visite') return;
+  keys[k] = true; e.preventDefault();
+});
+addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+const joy = { id: null, vx: 0, vy: 0 };
+function joyMove(e) {
+  const r = ui.joy.getBoundingClientRect(), R = r.width / 2;
+  let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
+  const d = Math.hypot(dx, dy), max = R - 10;
+  if (d > max) { dx *= max / d; dy *= max / d; }
+  joy.vx = dx / max; joy.vy = dy / max;
+  ui.knob.style.transform = `translate(${dx}px,${dy}px)`;
+}
+ui.joy.addEventListener('pointerdown', e => { joy.id = e.pointerId; ui.joy.setPointerCapture(e.pointerId); joyMove(e); e.preventDefault(); });
+ui.joy.addEventListener('pointermove', e => { if (e.pointerId === joy.id) joyMove(e); });
+const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.id = null; joy.vx = joy.vy = 0; ui.knob.style.transform = ''; };
+ui.joy.addEventListener('pointerup', joyEnd); ui.joy.addEventListener('pointercancel', joyEnd);
+
+const lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+let look = null;
+function lookBy(dx, dy) {
+  lookEuler.setFromQuaternion(visitCam.quaternion);
+  lookEuler.y -= dx * 0.0045; lookEuler.x -= dy * 0.0045;
+  lookEuler.x = Math.max(-Math.PI / 2 + 0.12, Math.min(Math.PI / 2 - 0.12, lookEuler.x));
+  visitCam.quaternion.setFromEuler(lookEuler);
+}
+
+function collide(p) {
+  const R = M.rayonCorpsVisite;
+  const rects = state.equipements ? collisionRects.concat(fixtureRects) : collisionRects;
+  for (let it = 0; it < 4; it++) {
+    for (const r of rects) {
+      const cx = Math.max(r.x0, Math.min(p.x, r.x1)), cy = Math.max(r.y0, Math.min(p.y, r.y1));
+      const dx = p.x - cx, dy = p.y - cy, d2 = dx * dx + dy * dy;
+      if (d2 >= R * R) continue;
+      if (d2 > 1e-6) { const d = Math.sqrt(d2); p.x += dx / d * (R - d); p.y += dy / d * (R - d); }
+      else {
+        const pen = [[p.x - r.x0 + R, -1, 0], [r.x1 - p.x + R, 1, 0], [p.y - r.y0 + R, 0, -1], [r.y1 - p.y + R, 0, 1]].sort((a, b) => a[0] - b[0])[0];
+        p.x += pen[1] * pen[0]; p.y += pen[2] * pen[0];
+      }
+    }
+  }
+}
+const _fwd = V3(0, 0, 0), _right = V3(0, 0, 0);
+function updateVisit(dt) {
+  let f = 0, s = 0;
+  if (keys.f) f += 1; if (keys.b) f -= 1; if (keys.r) s += 1; if (keys.l) s -= 1;
+  f -= joy.vy; s += joy.vx;
+  const mag = Math.hypot(f, s); if (mag > 1) { f /= mag; s /= mag; }
+  if (mag < 0.02) return;
+  visitCam.getWorldDirection(_fwd); _fwd.y = 0; _fwd.normalize();
+  _right.crossVectors(_fwd, V3(0, 1, 0)).normalize();
+  const speed = keys.run ? 260 : 120;
+  const mx = (_fwd.x * f + _right.x * s) * speed * dt, mz = (_fwd.z * f + _right.z * s) * speed * dt;
+  const n = Math.max(1, Math.ceil(Math.hypot(mx, mz) / 4));
+  const p = { x: visitCam.position.x, y: visitCam.position.z };
+  for (let i = 0; i < n; i++) { p.x += mx / n; p.y += mz / n; collide(p); }
+  visitCam.position.set(p.x, M.hauteurOeil, p.y);
+}
+
+/* ------------------------------------------------------------------ */
+/* Mesure                                                              */
+/* ------------------------------------------------------------------ */
+const measure = { active: false, a: null, b: null };
+const mLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(0, 0, 0), V3(0, 0, 0)]), new THREE.LineBasicMaterial({ color: 0x1565c0, depthTest: false }));
+mLine.renderOrder = 999; mLine.frustumCulled = false; mLine.visible = false;
+const mDots = new THREE.Points(new THREE.BufferGeometry().setFromPoints([V3(0, 0, 0), V3(0, 0, 0)]), new THREE.PointsMaterial({ color: 0x1565c0, size: 9, sizeAttenuation: false, depthTest: false }));
+mDots.renderOrder = 1000; mDots.frustumCulled = false; mDots.visible = false;
+const mLabelEl = document.createElement('div'); mLabelEl.className = 'lbl-mes';
+const mLabel = new CSS2DObject(mLabelEl); mLabel.visible = false;
+groups.mesure.add(mLine, mDots, mLabel);
+
+const snapRects = () => [...GEO.walls.map(rectOf), ...GEO.openings.map(rectOf), ...(state.equipements ? GEO.fixtures.map(rectOf) : []), ...GEO.rooms.filter(r => r.rect).map(r => ({ x0: r.rect[0], y0: r.rect[1], x1: r.rect[2], y1: r.rect[3] }))];
+const floorPlane = new THREE.Plane(V3(0, 1, 0), 0);
+const raycaster = new THREE.Raycaster();
+function floorPoint(clientX, clientY) {
+  const ndc = new THREE.Vector2(clientX / innerWidth * 2 - 1, -(clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, activeCam());
+  const p = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(floorPlane, p)) return null;
+  // aimantation
+  const cam = activeCam();
+  const scr = v => { const s = v.clone().project(cam); return [(s.x + 1) / 2 * innerWidth, (1 - s.y) / 2 * innerHeight]; };
+  const dist = v => { const s = scr(v); return Math.hypot(s[0] - clientX, s[1] - clientY); };
+  let best = null, bd = 14;
+  const rects = snapRects();
+  for (const r of rects) for (const c of [V3(r.x0, 0, r.y0), V3(r.x1, 0, r.y0), V3(r.x0, 0, r.y1), V3(r.x1, 0, r.y1)]) {
+    const d = dist(c); if (d < bd) { bd = d; best = c; }
+  }
+  if (best) return { p: best, snap: 'angle' };
+  bd = 9;
+  for (const r of rects) {
+    const cands = [V3(Math.max(r.x0, Math.min(p.x, r.x1)), 0, r.y0), V3(Math.max(r.x0, Math.min(p.x, r.x1)), 0, r.y1),
+                   V3(r.x0, 0, Math.max(r.y0, Math.min(p.z, r.y1))), V3(r.x1, 0, Math.max(r.y0, Math.min(p.z, r.y1)))];
+    for (const c of cands) { const d = dist(c); if (d < bd) { bd = d; best = c; } }
+  }
+  if (best) return { p: best, snap: 'face' };
+  return { p: V3(Math.round(p.x * 10) / 10, 0, Math.round(p.z * 10) / 10), snap: null };
+}
+function drawMeasure(a, b, final) {
+  const A = V3(a.x, 1, a.z), B = V3(b.x, 1, b.z);
+  mLine.geometry.setFromPoints([A, B]); mLine.visible = true;
+  mDots.geometry.setFromPoints([A, B]); mDots.visible = true;
+  const d = A.distanceTo(B);
+  mLabelEl.textContent = `${fmt(d, 1)} cm`;
+  mLabel.position.set((A.x + B.x) / 2, 2, (A.z + B.z) / 2); mLabel.visible = d > 0.5;
+  return d;
+}
+function toggleMeasure(on) {
+  measure.active = on; ui.mBtn.classList.toggle('on', on);
+  if (!on) { measure.a = measure.b = null; }
+  updateHint();
+}
+function clearMeasure() {
+  measure.a = measure.b = null; mLine.visible = mDots.visible = mLabel.visible = false; ui.mOut.textContent = '';
+}
+ui.mBtn.addEventListener('click', () => toggleMeasure(!measure.active));
+document.getElementById('measure-clear').addEventListener('click', clearMeasure);
+function measureTap(x, y) {
+  const fp = floorPoint(x, y); if (!fp) return;
+  if (!measure.a || measure.b) {
+    clearMeasure(); measure.a = fp.p;
+    const A = V3(fp.p.x, 1, fp.p.z); mDots.geometry.setFromPoints([A, A]); mDots.visible = true;
+    ui.mOut.textContent = `Point A : x ${fmt(fp.p.x, 1)} · y ${fmt(fp.p.z, 1)}${fp.snap ? ' (' + fp.snap + ')' : ''}`;
+  } else {
+    measure.b = fp.p;
+    const d = drawMeasure(measure.a, measure.b, true);
+    const dx = Math.abs(measure.b.x - measure.a.x), dy = Math.abs(measure.b.z - measure.a.z);
+    ui.mOut.textContent = `${fmt(d, 1)} cm  (Δx ${fmt(dx, 1)} · Δy ${fmt(dy, 1)})`;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Pointeur : tap / clic, regard tactile, aperçu de mesure             */
+/* ------------------------------------------------------------------ */
+const pointers = new Map();
+let tapCandidate = null;
+canvas.addEventListener('pointerdown', e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  tapCandidate = pointers.size === 1 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null;
+  if (mode === 'visite' && !plc.isLocked && !look) look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener('pointermove', e => {
+  if (look && e.pointerId === look.id && mode === 'visite' && !plc.isLocked) {
+    lookBy(e.clientX - look.x, e.clientY - look.y); look.x = e.clientX; look.y = e.clientY;
+  }
+  if (measure.active && measure.a && !measure.b && e.pointerType === 'mouse' && pointers.size === 0) {
+    const fp = floorPoint(e.clientX, e.clientY); if (fp) drawMeasure(measure.a, fp.p, false);
+  }
+});
+const pointerEnd = e => {
+  pointers.delete(e.pointerId);
+  if (look && look.id === e.pointerId) look = null;
+  if (!tapCandidate || tapCandidate.id !== e.pointerId) return;
+  const moved = Math.hypot(e.clientX - tapCandidate.x, e.clientY - tapCandidate.y), dt = performance.now() - tapCandidate.t;
+  tapCandidate = null;
+  if (e.type !== 'pointerup' || moved > 6 || dt > 600) return;
+  if (mode === 'visite') { if (e.pointerType === 'mouse' && !plc.isLocked) plc.lock(); }
+  else if (measure.active) measureTap(e.clientX, e.clientY);
+};
+canvas.addEventListener('pointerup', pointerEnd);
+canvas.addEventListener('pointercancel', pointerEnd);
+
+/* ------------------------------------------------------------------ */
+/* Boussole                                                            */
+/* ------------------------------------------------------------------ */
+const NORTH = V3(Math.sin(M.nordDegres * Math.PI / 180), 0, -Math.cos(M.nordDegres * Math.PI / 180));
+function updateCompass() {
+  const cam = activeCam();
+  let ref;
+  if (mode === 'maquette') ref = orbit.target.clone();
+  else if (mode === 'dessus') ref = orbitTop.target.clone();
+  else { cam.getWorldDirection(_fwd); _fwd.y = 0; _fwd.normalize(); ref = cam.position.clone().addScaledVector(_fwd, 300); ref.y = 0; }
+  const a = ref.clone().project(cam), b = ref.clone().addScaledVector(NORTH, 50).project(cam);
+  const ang = Math.atan2((b.x - a.x) * innerWidth, (b.y - a.y) * innerHeight);
+  ui.needle.setAttribute('transform', `rotate(${ang * 180 / Math.PI})`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Occultation des étiquettes en visite                                */
+/* ------------------------------------------------------------------ */
+const occRay = new THREE.Raycaster();
+function occludeLabels(cam) {
+  const cp = cam.position, cut = modeState[mode].coupe;
+  for (const o of roomLabels) {
+    const d = o.position.clone().sub(cp); const L = d.length(); d.normalize();
+    occRay.set(cp, d); occRay.far = Math.max(0, L - 5);
+    o.visible = !occRay.intersectObjects(wallMeshes, false).some(h => !cut || h.point.y <= M.coupe);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Boucle                                                              */
+/* ------------------------------------------------------------------ */
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight);
+  layoutCams();
+});
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (mode === 'maquette') { orbit.update(); if (state.noms) occludeLabels(perspCam); }
+  else if (mode === 'dessus') orbitTop.update();
+  else { updateVisit(dt); if (state.noms) occludeLabels(visitCam); }
+  const cam = activeCam();
+  renderer.render(scene, cam);
+  labelRenderer.render(scene, cam);
+  updateCompass();
+}
+renderer.setAnimationLoop(frame);
+
+/* ------------------------------------------------------------------ */
+/* Interface de contrôle (QC automatisé)                               */
+/* ------------------------------------------------------------------ */
+function planBox(obj) {
+  const b = new THREE.Box3().setFromObject(obj);
+  const r = v => Math.round(v * 100) / 100;
+  return { x: [r(b.min.x), r(b.max.x)], y: [r(b.min.z), r(b.max.z)], h: [r(b.min.y), r(b.max.y)] };
+}
+function hits(origin, dir, far) {
+  const rc = new THREE.Raycaster(origin, dir.clone().normalize(), 0, far);
+  return rc.intersectObjects(wallMeshes, false).map(h => h.object.name);
+}
+function qc() {
+  scene.updateMatrixWorld(true);
+  const out = { ouvertures: [], scans: {}, murs: [] };
+  for (const w of GEO.walls) out.murs.push({ id: w.id, ...planBox(scene.getObjectByName('mur:' + w.id)) });
+  for (const op of GEO.openings) {
+    const F = opFrame(op), g = scene.getObjectByName('ouverture:' + op.id);
+    const rec = { id: op.id, type: op.type, ensemble: planBox(g) };
+    if (op.type === 'porte') { rec.vantail = planBox(scene.getObjectByName('vantail:' + op.id)); rec.gond = doorInfo[op.id].gond; }
+    else { const parts = g.children.filter(c => c.userData.kind === 'dormant'); const bb = new THREE.Box3(); parts.forEach(p => bb.expandByObject(p)); rec.dormant = { x: [bb.min.x, bb.max.x], y: [bb.min.z, bb.max.z], h: [bb.min.y, bb.max.y] }; }
+    // lancers de rayons à travers l'épaisseur du mur
+    const top = op.allege + op.hauteur, zm = op.allege + op.hauteur / 2;
+    const ray = (u, z) => {
+      const o = F.pt(u, F.t0 - 5, z), o2 = F.pt(u, F.t1 + 5, z);
+      return hits(o, o2.clone().sub(o), (F.t1 - F.t0) + 10).length > 0;
+    };
+    rec.tests = {
+      videAuCentre: !ray((F.u0 + F.u1) / 2, zm),
+      videBordDebut: !ray(F.u0 + 0.5, zm),
+      videBordFin: !ray(F.u1 - 0.5, zm),
+      tableauAvantDebut: ray(F.u0 - 0.5, zm),
+      tableauApresFin: ray(F.u1 + 0.5, zm),
+      videSousLinteau: !ray((F.u0 + F.u1) / 2, top - 0.5),
+      linteauAuDessus: top < H ? ray((F.u0 + F.u1) / 2, top + 0.5) : null,
+      allegeEnDessous: op.allege > 0 ? ray((F.u0 + F.u1) / 2, op.allege - 0.5) : null,
+      videAuDessusAllege: op.allege > 0 ? !ray((F.u0 + F.u1) / 2, op.allege + 0.5) : null
+    };
+    out.ouvertures.push(rec);
+  }
+  // balayages des façades et murs : intervalles sans mur (à 150 cm et 50 cm de haut)
+  const scan = (name, from, to, step, mk) => {
+    const res = {};
+    for (const z of [150, 50]) {
+      const gaps = []; let s = null;
+      for (let a = from; a <= to; a += step) {
+        const [o, d, far] = mk(a, z); const hit = hits(o, d, far).length > 0;
+        if (!hit && s === null) s = a; if (hit && s !== null) { gaps.push([s, a - step]); s = null; }
+      }
+      if (s !== null) gaps.push([s, to]);
+      res['h' + z] = gaps;
+    }
+    out.scans[name] = res;
+  };
+  scan('mitoyen-g (x<0), le long de y', 0.5, 576.5, 1, (a, z) => [V3(-30, z, a), V3(1, 0, 0), 40]);
+  scan('couloir (y<0), le long de x', -16.5, 1169.5, 1, (a, z) => [V3(a, z, -45), V3(0, 0, 1), 50]);
+  scan('façade terrasse (y>577), le long de x', -16.5, 1169.5, 1, (a, z) => [V3(a, z, 660), V3(0, 0, -1), 90]);
+  scan('façade droite (x>1110), le long de y', 0.5, 576.5, 1, (a, z) => [V3(1180, z, a), V3(-1, 0, 0), 80]);
+  return out;
+}
+
+window.APP = {
+  GEO, scene, setMode, goView, setToggle, qc,
+  get mode() { return mode; },
+  setMaquetteCamera(px, py, pz, tx, ty, tz) { perspCam.position.set(px, py, pz); orbit.target.set(tx, ty, tz); orbit.update(); },
+  _cam: () => activeCam(),
+  ready: false
+};
+setMode('maquette');
+requestAnimationFrame(() => { document.getElementById('loading').classList.add('hide'); window.APP.ready = true; });
+</script>
+<script>
+  // Message si three.js ne peut pas être chargé (pas de connexion internet)
+  setTimeout(() => {
+    if (!window.APP || !window.APP.ready) {
+      const l = document.getElementById('loading');
+      if (l) l.innerHTML = 'La bibliothèque 3D (three.js, chargée depuis cdn.jsdelivr.net) n’a pas pu être chargée.<br>Vérifiez la connexion internet puis rechargez la page.';
+    }
+  }, 12000);
+</script>
+</body>
+</html>
