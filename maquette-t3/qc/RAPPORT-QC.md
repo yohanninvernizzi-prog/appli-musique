@@ -1,6 +1,6 @@
 # Rapport de contrôle qualité — maquette T3 lot 16
 
-Généré le 2026-11-20 10:26:06 UTC à partir de `index.html` (objet GEO).
+Généré le 2026-11-20 11:14:36 UTC à partir de `index.html` (objet GEO).
 
 ## 1. Surfaces intérieures recalculées (tolérance ±5 %)
 
@@ -43,6 +43,29 @@ Trous dans le périmètre des pièces fermées (ni mur ni ouverture déclarée) 
 
 → Non comblé dans la maquette (aucune cote inventée) : à confirmer, voir HYPOTHESES.md.
 
+## 3 bis. Aménagement : positions des meubles par rapport à la demande
+
+| Meuble            | Position dans la maquette (cm)                 | Par rapport à la demande |
+|-------------------|------------------------------------------------|--------------------------|
+| ilot              | x 294→494, y 173→263, h 90                     | conforme                 |
+| tabouret-1        | x 320→360, y 265→305, h 65                     | conforme                 |
+| tabouret-2        | x 380→420, y 265→305, h 65                     | conforme                 |
+| tabouret-3        | x 440→480, y 265→305, h 65                     | conforme                 |
+| meuble-tv         | x 0→40, y 300→480, h 50                        | conforme                 |
+| canape            | x 215→310, y 330→550, h 80                     | conforme                 |
+| table-basse       | x 90→170, y 400→480, h 35                      | conforme                 |
+| table-sejour      | x 465→575, y 385→495, h 75                     | conforme                 |
+| lit-ch1           | x 820→980, y 0→200, h 110                      | conforme                 |
+| armoire-ch1       | x 900→1100, y 218→278, h 220                   | conforme                 |
+| lit-ch2           | x 886→1026, y 287→477, h 110                   | AJUSTÉ : x 882 → 886     |
+| bureau-ch2        | x 883→1003, y 517→577, h 75                    | conforme                 |
+| armoire-ch2       | x 1050→1110, y 300→480, h 220                  | conforme                 |
+| cuisine-frigo     | x 193→254, y 0→63, h 200                       | conforme                 |
+| suspension-ilot-1 | x 326.5→361.5, y 200.5→235.5, h 35 (bas à 175) | conforme                 |
+| suspension-table  | x 490→550, y 410→470, h 60 (bas à 150)         | conforme                 |
+
+51 éléments dans le tableau `furniture`. Les ajustements sont justifiés dans HYPOTHESES.md.
+
 ## 4. Ouvertures : coordonnées réelles relevées dans la scène 3D
 
 Repère plan (cm) : x vers la droite, y vers la terrasse (= axe Z de three.js), h = hauteur. Valeurs lues sur les boîtes englobantes des objets de la scène.
@@ -73,24 +96,63 @@ Tests par rayons à travers l'épaisseur du mur : vide au centre et à 0,5 cm de
 Les bornes sont les positions des rayons (pas de 1 cm, décalés de 0,5) : « 1.5→98.5 » = vide entre 1 et 99.
 - OK : ouvertures extérieures exactement aux positions attendues, aucune ouverture sur le mur mitoyen ni sur le mur du couloir (hors porte d'entrée).
 
+## 4 bis. Aménagement : chevauchements
+
+Chaque meuble (emprise au sol + hauteur) est confronté aux murs, aux baies de portes et fenêtres, au débattement des 5 portes (quart de cercle du vantail), à la zone à garder libre devant la partie gauche de la baie, aux équipements fixes et aux autres meubles (tolérance 0,5 cm ; le tapis et les chaises rentrées sous leur table sont exclus).
+
+- OK : aucun meuble ne chevauche un mur, une porte (débattement compris), la baie ou un autre meuble.
+
+Avertissements (ouvrants de fenêtres, hypothèse de vantaux à la française ouvrant vers l'intérieur) :
+
+| Meuble      | Gêne                        | Profondeur (cm) |
+|-------------|-----------------------------|-----------------|
+| armoire-ch1 | ouvrant : Fenêtre chambre 1 | 34              |
+
+## 4 ter. Passages libres (seuil 80 cm)
+
+« chemin » : plus grand disque pouvant circuler d'une zone à l'autre entre murs, équipements et meubles, portes supposées fermées (grille de 2 cm), largeur réelle mesurée au point le plus étroit. « écart » : distance mini entre deux éléments.
+
+| Passage                                    | Largeur (cm) | Point le plus étroit entre                                                                                                     | Verdict        |
+|--------------------------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|----------------|
+| Allée cuisine / îlot                       | 110          | colonne frigo (cuisine-frigo), meuble bas (cuisine-cuisson), meuble bas (cuisine-evier), meuble bas (cuisine-lv) ↔ îlot (ilot) | OK             |
+| Entrée → dégagement                        | 34           | tabouret (tabouret-1) ↔ canapé (canape)                                                                                        | MOINS DE 80 CM |
+| Entrée → baie (partie gauche)              | 34           | tabouret (tabouret-1) ↔ canapé (canape)                                                                                        | MOINS DE 80 CM |
+| Couloir canapé / table → baie              | 123          | canapé (canape) ↔ chaise (chaise-o)                                                                                            | OK             |
+| Chambre 1 : côté gauche du lit             | 114          | lit (lit-ch1) ↔ Mur double salle d'eau / chambre 1                                                                             | OK             |
+| Chambre 1 : pied du lit ↔ armoire          | 18           | lit (lit-ch1) ↔ armoire (armoire-ch1)                                                                                          | MOINS DE 80 CM |
+| Chambre 1 : côté droit du lit              | 130          | lit (lit-ch1) ↔ Façade droite, tronçon haut                                                                                    | OK             |
+| Chambre 1 : porte → côté droit du lit      | 18           | lit (lit-ch1) ↔ armoire (armoire-ch1)                                                                                          | MOINS DE 80 CM |
+| Chambre 2 : porte → côté gauche du lit     | 90           | Mur chambre 2 / WC ↔ lit (lit-ch2)                                                                                             | OK             |
+| Chambre 2 : côté droit du lit ↔ armoire    | 24           | lit (lit-ch2) ↔ armoire (armoire-ch2)                                                                                          | MOINS DE 80 CM |
+| Chambre 2 : pied du lit ↔ chaise de bureau | 5            | lit (lit-ch2) ↔ chaise (chaise-bureau)                                                                                         | MOINS DE 80 CM |
+
+- 6 passage(s) de moins de 80 cm (signalés, positions demandées conservées).
+
 ## 5. Captures
 
-| Fichier                                      | Contenu                                                        |
-|----------------------------------------------|----------------------------------------------------------------|
-| captures/01-dessus-cotes.png                 | Vue de dessus orthographique, coupe à 120 cm, cotes et noms    |
-| captures/02-dessus-equipements.png           | Vue de dessus avec le calque équipements                       |
-| captures/03-maquette.png                     | Vue maquette (orbite), plafond masqué                          |
-| captures/04-maquette-coupe.png               | Vue maquette, murs coupés à 120 cm                             |
-| captures/05-maquette-arriere.png             | Vue maquette depuis le couloir / la façade droite              |
-| captures/06-facade-terrasse.png              | Façade terrasse vue de l'extérieur (baie et fenêtre chambre 2) |
-| captures/07-vue-entree-baie.png              | Point de vue : Entrée → baie                                   |
-| captures/08-vue-baie-cuisine.png             | Point de vue : Baie → cuisine                                  |
-| captures/09-vue-sejour-degagement.png        | Point de vue : Séjour → dégagement                             |
-| captures/10-vue-chambre-1.png                | Point de vue : Chambre 1                                       |
-| captures/11-vue-chambre-2.png                | Point de vue : Chambre 2                                       |
-| captures/12-vue-baie-cuisine-equipements.png | Baie → cuisine avec équipements                                |
-| captures/13-telephone-dessus.png             | Téléphone (390 × 844) : vue de dessus                          |
-| captures/14-telephone-visite.png             | Téléphone : visite avec joystick                               |
+| Fichier                                        | Contenu                                                               |
+|------------------------------------------------|-----------------------------------------------------------------------|
+| captures/01-dessus-cotes.png                   | Vue de dessus, coupe à 120 cm, cotes, sans aménagement                |
+| captures/02-maquette.png                       | Vue maquette, sans aménagement                                        |
+| captures/03-facade-terrasse.png                | Façade terrasse vue de l'extérieur                                    |
+| captures/04-vue-entree-baie-vide.png           | Sans aménagement : Entrée → baie                                      |
+| captures/05-vue-baie-cuisine-vide.png          | Sans aménagement : Baie → cuisine                                     |
+| captures/06-vue-sejour-degagement-vide.png     | Sans aménagement : Séjour → dégagement                                |
+| captures/07-vue-chambre-1-vide.png             | Sans aménagement : Chambre 1                                          |
+| captures/08-vue-chambre-2-vide.png             | Sans aménagement : Chambre 2                                          |
+| captures/09-dessus-amenagement-passages.png    | Vue de dessus avec aménagement et passages libres                     |
+| captures/10-maquette-amenagement.png           | Vue maquette avec aménagement                                         |
+| captures/11-maquette-amenagement-arriere.png   | Vue maquette avec aménagement, depuis le couloir                      |
+| captures/12-vue-entree-baie-amenage.png        | Avec aménagement : Entrée → baie                                      |
+| captures/13-vue-baie-cuisine-amenage.png       | Avec aménagement : Baie → cuisine                                     |
+| captures/14-vue-sejour-degagement-amenage.png  | Avec aménagement : Séjour → dégagement                                |
+| captures/15-vue-chambre-1-amenage.png          | Avec aménagement : Chambre 1                                          |
+| captures/16-vue-chambre-2-amenage.png          | Avec aménagement : Chambre 2                                          |
+| captures/17-vue-salle-d-eau-amenage.png        | Avec aménagement : salle d'eau depuis la porte                        |
+| captures/18-vue-salle-d-eau-lavabo-amenage.png | Avec aménagement : salle d'eau, lavabo, lave-linge, placard du ballon |
+| captures/19-vue-wc-amenage.png                 | Avec aménagement : WC depuis la porte                                 |
+| captures/20-telephone-dessus-amenagement.png   | Téléphone (390 × 844) : vue de dessus avec aménagement                |
+| captures/21-telephone-visite.png               | Téléphone : visite avec joystick                                      |
 
 - Aucune erreur JavaScript dans la page.
 

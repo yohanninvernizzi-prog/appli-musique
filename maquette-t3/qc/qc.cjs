@@ -30,6 +30,8 @@ const src = fs.readFileSync(HTML, 'utf8');
 const m = src.match(/\/\*GEO-START\*\/([\s\S]*?)\/\*GEO-END\*\//);
 if (!m) { console.error('Bloc GEO introuvable'); process.exit(2); }
 const GEO = vm.runInNewContext(m[1] + '\n;GEO');
+const mf = src.match(/\/\*FURNITURE-START\*\/([\s\S]*?)\/\*FURNITURE-END\*\//);
+const FURN = mf ? vm.runInNewContext(mf[1] + '\n;({ furniture, passages, zonesLibres })') : null;
 
 const lines = [];
 const log = (s = '') => { console.log(s); lines.push(s); };
@@ -171,6 +173,34 @@ log('');
 log('');
 
 /* ---------------------------------------------------------------- */
+/* 3 bis. Aménagement : positions demandées (cahier des charges, étape 2) */
+/* ---------------------------------------------------------------- */
+// [x, y, largeur, profondeur, hauteur] tels que demandés (centres convertis en coin haut-gauche)
+const BRIEF_FURN = {
+  'ilot': [294, 173, 200, 90, 90], 'tabouret-1': [320, 265, 40, 40, 65], 'tabouret-2': [380, 265, 40, 40, 65], 'tabouret-3': [440, 265, 40, 40, 65],
+  'meuble-tv': [0, 300, 40, 180, 50], 'canape': [215, 330, 95, 220, 80], 'table-basse': [90, 400, 80, 80, 35],
+  'table-sejour': [465, 385, 110, 110, 75], 'lit-ch1': [820, 0, 160, 200, null], 'armoire-ch1': [900, 218, 200, 60, 220],
+  'lit-ch2': [882, 287, 140, 190, null], 'bureau-ch2': [883, 517, 120, 60, null], 'armoire-ch2': [1050, 300, 60, 180, 220],
+  'cuisine-frigo': [193, 0, 61, 63, 200], 'suspension-ilot-1': [null, null, 35, 35, null], 'suspension-table': [490, 410, 60, 60, null]
+};
+if (FURN) {
+  log('## 3 bis. Aménagement : positions des meubles par rapport à la demande');
+  log('');
+  const rowsF = [];
+  for (const [id, b] of Object.entries(BRIEF_FURN)) {
+    const f = FURN.furniture.find(o => o.id === id);
+    if (!f) { rowsF.push([id, 'ABSENT', '']); failures++; continue; }
+    const got = [f.x, f.y, f.largeur, f.profondeur, f.hauteur];
+    const diffs = b.map((v, i) => v === null || v === got[i] ? null : `${['x', 'y', 'largeur', 'profondeur', 'hauteur'][i]} ${v} → ${got[i]}`).filter(Boolean);
+    rowsF.push([id, `x ${f.x}→${f.x + f.largeur}, y ${f.y}→${f.y + f.profondeur}, h ${f.hauteur}${f.z ? ' (bas à ' + f.z + ')' : ''}`, diffs.length ? 'AJUSTÉ : ' + diffs.join(', ') : 'conforme']);
+  }
+  table(['Meuble', 'Position dans la maquette (cm)', 'Par rapport à la demande'], rowsF);
+  log('');
+  log(`${FURN.furniture.length} éléments dans le tableau \`furniture\`. Les ajustements sont justifiés dans HYPOTHESES.md.`);
+  log('');
+}
+
+/* ---------------------------------------------------------------- */
 /* 4-5. Contrôles dans la scène 3D + captures                        */
 /* ---------------------------------------------------------------- */
 async function browserChecks() {
@@ -238,37 +268,70 @@ async function browserChecks() {
            : '- ÉCART : le balayage ne correspond pas aux positions attendues.');
   log('');
 
+  // ---- aménagement : chevauchements et passages (calculés par la page) ----
+  const ctl = await page.evaluate(() => APP.controles());
+  log('## 4 bis. Aménagement : chevauchements');
+  log('');
+  log('Chaque meuble (emprise au sol + hauteur) est confronté aux murs, aux baies de portes et fenêtres, au débattement des 5 portes (quart de cercle du vantail), à la zone à garder libre devant la partie gauche de la baie, aux équipements fixes et aux autres meubles (tolérance 0,5 cm ; le tapis et les chaises rentrées sous leur table sont exclus).');
+  log('');
+  if (ctl.conflits.length) { failures += ctl.conflits.length; table(['Meuble', 'Chevauche', 'Profondeur (cm)'], ctl.conflits.map(c => [c.meuble, c.avec, c.profondeur])); }
+  else log('- OK : aucun meuble ne chevauche un mur, une porte (débattement compris), la baie ou un autre meuble.');
+  if (ctl.avertissements.length) {
+    log('');
+    log('Avertissements (ouvrants de fenêtres, hypothèse de vantaux à la française ouvrant vers l\'intérieur) :');
+    log('');
+    table(['Meuble', 'Gêne', 'Profondeur (cm)'], ctl.avertissements.map(c => [c.meuble, c.avec, c.profondeur]));
+  }
+  log('');
+  const pas = await page.evaluate(() => APP.passages());
+  log('## 4 ter. Passages libres (seuil 80 cm)');
+  log('');
+  log('« chemin » : plus grand disque pouvant circuler d\'une zone à l\'autre entre murs, équipements et meubles, portes supposées fermées (grille de 2 cm), largeur réelle mesurée au point le plus étroit. « écart » : distance mini entre deux éléments.');
+  log('');
+  table(['Passage', 'Largeur (cm)', 'Point le plus étroit entre', 'Verdict'], pas.map(r => [r.nom, r.largeur.toFixed(0), r.entre.filter(Boolean).join(' ↔ '), r.largeur >= 80 ? 'OK' : 'MOINS DE 80 CM']));
+  const narrow = pas.filter(r => r.largeur < 80);
+  log('');
+  log(narrow.length ? `- ${narrow.length} passage(s) de moins de 80 cm (signalés, positions demandées conservées).` : '- OK : tous les passages font au moins 80 cm.');
+  log('');
+
   // ---- captures ----
   log('## 5. Captures');
   log('');
   const shots = [];
-  const snap = async (p, name, desc) => { await p.waitForTimeout(700); await p.screenshot({ path: path.join(OUT, name) }); shots.push([name, desc]); };
-  await page.evaluate(() => { APP.setMode('dessus'); APP.setToggle('cotes', true); APP.setToggle('noms', true); });
-  await snap(page, '01-dessus-cotes.png', 'Vue de dessus orthographique, coupe à 120 cm, cotes et noms');
-  await page.evaluate(() => { APP.setToggle('equipements', true); });
-  await snap(page, '02-dessus-equipements.png', 'Vue de dessus avec le calque équipements');
-  await page.evaluate(() => { APP.setToggle('equipements', false); APP.setToggle('cotes', false); APP.setMode('maquette'); });
-  await snap(page, '03-maquette.png', 'Vue maquette (orbite), plafond masqué');
-  await page.evaluate(() => { APP.setToggle('coupe', true); });
-  await snap(page, '04-maquette-coupe.png', 'Vue maquette, murs coupés à 120 cm');
-  await page.evaluate(() => { APP.setToggle('coupe', false); APP.setMaquetteCamera(1700, 900, -700, 560, 60, 300); });
-  await snap(page, '05-maquette-arriere.png', 'Vue maquette depuis le couloir / la façade droite');
-  await page.evaluate(() => { APP.setMaquetteCamera(466, 420, 1500, 466, 100, 500); });
-  await snap(page, '06-facade-terrasse.png', 'Façade terrasse vue de l\'extérieur (baie et fenêtre chambre 2)');
+  for (const f of fs.readdirSync(OUT)) if (f.endsWith('.png')) fs.unlinkSync(path.join(OUT, f));
+  const snap = async (p, name, desc) => { await p.waitForTimeout(800); await p.screenshot({ path: path.join(OUT, name) }); shots.push([name, desc]); };
   const views = await page.evaluate(() => APP.GEO.vues.map(v => [v.id, v.nom]));
-  let i = 7;
-  for (const [id, nom] of views) {
-    await page.evaluate(id => APP.goView(id), id);
-    await snap(page, `${String(i).padStart(2, '0')}-vue-${id}.png`, 'Point de vue : ' + nom); i++;
-  }
-  await page.evaluate(() => { APP.setToggle('equipements', true); APP.goView('baie-cuisine'); });
-  await snap(page, `${i++}-vue-baie-cuisine-equipements.png`, 'Baie → cuisine avec équipements');
+  // --- sans aménagement (volumes nus) ---
+  await page.evaluate(() => { APP.setToggle('amenagement', false); APP.setMode('dessus'); APP.setToggle('cotes', true); APP.setToggle('noms', true); });
+  await snap(page, '01-dessus-cotes.png', 'Vue de dessus, coupe à 120 cm, cotes, sans aménagement');
+  await page.evaluate(() => { APP.setToggle('cotes', false); APP.setMode('maquette'); });
+  await snap(page, '02-maquette.png', 'Vue maquette, sans aménagement');
+  await page.evaluate(() => { APP.setMaquetteCamera(466, 420, 1500, 466, 100, 500); });
+  await snap(page, '03-facade-terrasse.png', 'Façade terrasse vue de l\'extérieur');
+  let i = 4;
+  for (const [id, nom] of views) { await page.evaluate(id => APP.goView(id), id); await snap(page, `${String(i++).padStart(2, '0')}-vue-${id}-vide.png`, 'Sans aménagement : ' + nom); }
+  // --- avec aménagement ---
+  await page.evaluate(() => { APP.setToggle('amenagement', true); APP.setMode('dessus'); });
+  await snap(page, `${String(i++).padStart(2, '0')}-dessus-amenagement-passages.png`, 'Vue de dessus avec aménagement et passages libres');
+  await page.evaluate(() => { APP.setMode('maquette'); APP.setMaquetteCamera(-260, 1250, 1500, 555, 0, 300); });
+  await snap(page, `${String(i++).padStart(2, '0')}-maquette-amenagement.png`, 'Vue maquette avec aménagement');
+  await page.evaluate(() => { APP.setToggle('passages', false); APP.setToggle('noms', false); APP.setMaquetteCamera(1500, 900, -650, 560, 60, 300); });
+  await snap(page, `${String(i++).padStart(2, '0')}-maquette-amenagement-arriere.png`, 'Vue maquette avec aménagement, depuis le couloir');
+  await page.evaluate(() => { APP.setToggle('noms', true); });
+  for (const [id, nom] of views) { await page.evaluate(id => APP.goView(id), id); await snap(page, `${String(i++).padStart(2, '0')}-vue-${id}-amenage.png`, 'Avec aménagement : ' + nom); }
+  await page.evaluate(() => { const c = APP._cam(); APP.goView('chambre-1'); c.position.set(560, 160, 255); c.lookAt(560, 110, 40); });
+  await snap(page, `${String(i++).padStart(2, '0')}-vue-salle-d-eau-amenage.png`, 'Avec aménagement : salle d\'eau depuis la porte');
+  await page.evaluate(() => { const c = APP._cam(); c.position.set(655, 160, 190); c.lookAt(501, 105, 205); });
+  await snap(page, `${String(i++).padStart(2, '0')}-vue-salle-d-eau-lavabo-amenage.png`, 'Avec aménagement : salle d\'eau, lavabo, lave-linge, placard du ballon');
+  await page.evaluate(() => { const c = APP._cam(); c.position.set(718, 160, 400); c.lookAt(700, 60, 560); });
+  await snap(page, `${String(i++).padStart(2, '0')}-vue-wc-amenage.png`, 'Avec aménagement : WC depuis la porte');
+  await page.evaluate(() => { APP.setToggle('passages', true); });
   // téléphone
   const phone = await newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  await phone.evaluate(() => { APP.setMode('dessus'); APP.setToggle('cotes', true); });
-  await snap(phone, `${i++}-telephone-dessus.png`, 'Téléphone (390 × 844) : vue de dessus');
-  await phone.evaluate(() => { APP.goView('entree-baie'); });
-  await snap(phone, `${i++}-telephone-visite.png`, 'Téléphone : visite avec joystick');
+  await phone.evaluate(() => { APP.setMode('dessus'); });
+  await snap(phone, `${String(i++).padStart(2, '0')}-telephone-dessus-amenagement.png`, 'Téléphone (390 × 844) : vue de dessus avec aménagement');
+  await phone.evaluate(() => { APP.goView('baie-cuisine'); });
+  await snap(phone, `${String(i++).padStart(2, '0')}-telephone-visite.png`, 'Téléphone : visite avec joystick');
   table(['Fichier', 'Contenu'], shots.map(([a, b]) => [`captures/${a}`, b]));
   log('');
   if (errors.length) { failures++; log('Erreurs JavaScript relevées dans la page :'); errors.forEach(e => log('- ' + e)); }
