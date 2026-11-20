@@ -1,6 +1,6 @@
 # Rapport de contrôle qualité — maquette T3 lot 16
 
-Généré le 2026-11-20 11:14:36 UTC à partir de `index.html` (objet GEO).
+Généré le 2026-11-20 11:44:38 UTC à partir de `index.html` (objet GEO).
 
 ## 1. Surfaces intérieures recalculées (tolérance ±5 %)
 
@@ -48,23 +48,23 @@ Trous dans le périmètre des pièces fermées (ni mur ni ouverture déclarée) 
 | Meuble            | Position dans la maquette (cm)                 | Par rapport à la demande |
 |-------------------|------------------------------------------------|--------------------------|
 | ilot              | x 294→494, y 173→263, h 90                     | conforme                 |
-| tabouret-1        | x 320→360, y 265→305, h 65                     | conforme                 |
-| tabouret-2        | x 380→420, y 265→305, h 65                     | conforme                 |
-| tabouret-3        | x 440→480, y 265→305, h 65                     | conforme                 |
-| meuble-tv         | x 0→40, y 300→480, h 50                        | conforme                 |
-| canape            | x 215→310, y 330→550, h 80                     | conforme                 |
-| table-basse       | x 90→170, y 400→480, h 35                      | conforme                 |
-| table-sejour      | x 465→575, y 385→495, h 75                     | conforme                 |
-| lit-ch1           | x 820→980, y 0→200, h 110                      | conforme                 |
-| armoire-ch1       | x 900→1100, y 218→278, h 220                   | conforme                 |
+| tabouret-1        | x 324→364, y 238→278, h 65                     | conforme                 |
+| tabouret-2        | x 424→464, y 238→278, h 65                     | conforme                 |
+| meuble-tv         | x 0→40, y 377→557, h 50                        | conforme                 |
+| canape            | x 215→310, y 357→577, h 80                     | conforme                 |
+| table-basse       | x 90→170, y 427→507, h 35                      | conforme                 |
+| table-sejour      | x 465→575, y 400→510, h 75                     | conforme                 |
 | lit-ch2           | x 886→1026, y 287→477, h 110                   | AJUSTÉ : x 882 → 886     |
 | bureau-ch2        | x 883→1003, y 517→577, h 75                    | conforme                 |
 | armoire-ch2       | x 1050→1110, y 300→480, h 220                  | conforme                 |
 | cuisine-frigo     | x 193→254, y 0→63, h 200                       | conforme                 |
 | suspension-ilot-1 | x 326.5→361.5, y 200.5→235.5, h 35 (bas à 175) | conforme                 |
-| suspension-table  | x 490→550, y 410→470, h 60 (bas à 150)         | conforme                 |
+| suspension-table  | x 490→550, y 425→485, h 60 (bas à 150)         | conforme                 |
+| lit-superpose     | x 706→913, y 0→102, h 165                      | conforme                 |
+| bureau-double     | x 1050→1110, y 58→258, h 75                    | conforme                 |
+| armoire-ch1       | x 788→968, y 218→278, h 220                    | conforme                 |
 
-51 éléments dans le tableau `furniture`. Les ajustements sont justifiés dans HYPOTHESES.md.
+55 éléments dans le tableau `furniture`. Les ajustements sont justifiés dans HYPOTHESES.md.
 
 ## 4. Ouvertures : coordonnées réelles relevées dans la scène 3D
 
@@ -102,12 +102,6 @@ Chaque meuble (emprise au sol + hauteur) est confronté aux murs, aux baies de p
 
 - OK : aucun meuble ne chevauche un mur, une porte (débattement compris), la baie ou un autre meuble.
 
-Avertissements (ouvrants de fenêtres, hypothèse de vantaux à la française ouvrant vers l'intérieur) :
-
-| Meuble      | Gêne                        | Profondeur (cm) |
-|-------------|-----------------------------|-----------------|
-| armoire-ch1 | ouvrant : Fenêtre chambre 1 | 34              |
-
 ## 4 ter. Passages libres (seuil 80 cm)
 
 « chemin » : plus grand disque pouvant circuler d'une zone à l'autre entre murs, équipements et meubles, portes supposées fermées (grille de 2 cm), largeur réelle mesurée au point le plus étroit. « écart » : distance mini entre deux éléments.
@@ -115,18 +109,18 @@ Avertissements (ouvrants de fenêtres, hypothèse de vantaux à la française ou
 | Passage                                    | Largeur (cm) | Point le plus étroit entre                                                                                                     | Verdict        |
 |--------------------------------------------|--------------|--------------------------------------------------------------------------------------------------------------------------------|----------------|
 | Allée cuisine / îlot                       | 110          | colonne frigo (cuisine-frigo), meuble bas (cuisine-cuisson), meuble bas (cuisine-evier), meuble bas (cuisine-lv) ↔ îlot (ilot) | OK             |
-| Entrée → dégagement                        | 34           | tabouret (tabouret-1) ↔ canapé (canape)                                                                                        | MOINS DE 80 CM |
-| Entrée → baie (partie gauche)              | 34           | tabouret (tabouret-1) ↔ canapé (canape)                                                                                        | MOINS DE 80 CM |
+| Entrée → dégagement                        | 82           | Salle d'eau, mur gauche ↔ chaise (chaise-n)                                                                                    | OK             |
+| Entrée → baie (partie gauche)              | 85           | canapé (canape) ↔ tabouret (tabouret-1)                                                                                        | OK             |
 | Couloir canapé / table → baie              | 123          | canapé (canape) ↔ chaise (chaise-o)                                                                                            | OK             |
-| Chambre 1 : côté gauche du lit             | 114          | lit (lit-ch1) ↔ Mur double salle d'eau / chambre 1                                                                             | OK             |
-| Chambre 1 : pied du lit ↔ armoire          | 18           | lit (lit-ch1) ↔ armoire (armoire-ch1)                                                                                          | MOINS DE 80 CM |
-| Chambre 1 : côté droit du lit              | 130          | lit (lit-ch1) ↔ Façade droite, tronçon haut                                                                                    | OK             |
-| Chambre 1 : porte → côté droit du lit      | 18           | lit (lit-ch1) ↔ armoire (armoire-ch1)                                                                                          | MOINS DE 80 CM |
+| Chambre 1 : lit superposé ↔ armoire        | 116          | lit superposé (lit-superpose) ↔ armoire (armoire-ch1)                                                                          | OK             |
+| Chambre 1 : armoire ↔ bureau               | 82           | armoire (armoire-ch1) ↔ bureau (bureau-double)                                                                                 | OK             |
+| Chambre 1 : porte → bureaux                | 82           | Mur double salle d'eau / chambre 1 ↔ armoire (armoire-ch1)                                                                     | OK             |
+| Chambre 1 : porte → rangement à cubes      | 82           | Mur double salle d'eau / chambre 1 ↔ armoire (armoire-ch1)                                                                     | OK             |
 | Chambre 2 : porte → côté gauche du lit     | 90           | Mur chambre 2 / WC ↔ lit (lit-ch2)                                                                                             | OK             |
 | Chambre 2 : côté droit du lit ↔ armoire    | 24           | lit (lit-ch2) ↔ armoire (armoire-ch2)                                                                                          | MOINS DE 80 CM |
 | Chambre 2 : pied du lit ↔ chaise de bureau | 5            | lit (lit-ch2) ↔ chaise (chaise-bureau)                                                                                         | MOINS DE 80 CM |
 
-- 6 passage(s) de moins de 80 cm (signalés, positions demandées conservées).
+- 2 passage(s) de moins de 80 cm (signalés, positions demandées conservées).
 
 ## 5. Captures
 

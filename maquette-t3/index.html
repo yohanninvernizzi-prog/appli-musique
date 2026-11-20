@@ -113,7 +113,7 @@ const GEO = {
     { id: 'entree-baie',       nom: 'Entrée → baie',        depuis: [55, 210],  vers: [466, 577, 110] },
     { id: 'baie-cuisine',      nom: 'Baie → cuisine',       depuis: [466, 545], vers: [343, 30, 100] },
     { id: 'sejour-degagement', nom: 'Séjour → dégagement',  depuis: [330, 440], vers: [740, 320, 120] },
-    { id: 'chambre-1',         nom: 'Chambre 1',            depuis: [800, 250], vers: [1110, 60, 110] },
+    { id: 'chambre-1',         nom: 'Chambre 1',            depuis: [740, 190], vers: [1110, 140, 100] },
     { id: 'chambre-2',         nom: 'Chambre 2',            depuis: [820, 310], vers: [1110, 577, 100] }
   ]
 };
@@ -140,41 +140,46 @@ const furniture = [
   { id: 'cuisine-evier',   type: 'meuble-bas', variante: 'evier',          x: 341, y: 0, largeur: 89, profondeur: 63, hauteur: 90, rotation: 0, materiau: 'sauge', habille: 'cuisine-evier' },
   { id: 'cuisine-lv',      type: 'meuble-bas', variante: 'lave-vaisselle', x: 430, y: 0, largeur: 64, profondeur: 63, hauteur: 90, rotation: 0, materiau: 'sauge', habille: 'cuisine-lv' },
   { id: 'credence',        type: 'revetement', x: 254, y: 0, largeur: 240, profondeur: 1.5, hauteur: 60, z: 90,  rotation: 0, materiau: 'zellige' },
-  { id: 'etagere-cuisine', type: 'etagere',    x: 254, y: 0, largeur: 240, profondeur: 25,  hauteur: 4,  z: 150, rotation: 0, materiau: 'chene' },
+  { id: 'etagere-cuisine', type: 'etagere',    x: 254, y: 0, largeur: 87,  profondeur: 25,  hauteur: 4,  z: 150, rotation: 0, materiau: 'chene' }, // au-dessus de la cuisson (pas de meuble haut)
+  // meubles hauts : partout sauf au-dessus de la plaque de cuisson ; dessus alignés à 230 cm
+  { id: 'haut-frigo',      type: 'meuble-haut', x: 193, y: 0, largeur: 61,  profondeur: 60, hauteur: 30, z: 200, rotation: 0, materiau: 'sauge', portes: 1 },
+  { id: 'haut-evier',      type: 'meuble-haut', x: 341, y: 0, largeur: 89,  profondeur: 35, hauteur: 80, z: 150, rotation: 0, materiau: 'sauge', portes: 2 },
+  { id: 'haut-lv',         type: 'meuble-haut', x: 430, y: 0, largeur: 64,  profondeur: 35, hauteur: 80, z: 150, rotation: 0, materiau: 'sauge', portes: 1 },
   // ---------- Îlot et tabourets ----------
   // 200 × 90 × 90 : caisson de 65 cm + plateau débordant de 25 cm côté séjour (+y)
   { id: 'ilot',       type: 'ilot',     x: 294, y: 173, largeur: 200, profondeur: 90, hauteur: 90, rotation: 180, materiau: 'sauge', debord: 25 },
-  { id: 'tabouret-1', type: 'tabouret', x: 320, y: 265, largeur: 40, profondeur: 40, hauteur: 65, rotation: 180, materiau: 'chene' }, // centre (340, 285)
-  { id: 'tabouret-2', type: 'tabouret', x: 380, y: 265, largeur: 40, profondeur: 40, hauteur: 65, rotation: 180, materiau: 'chene' }, // centre (400, 285)
-  { id: 'tabouret-3', type: 'tabouret', x: 440, y: 265, largeur: 40, profondeur: 40, hauteur: 65, rotation: 180, materiau: 'chene' }, // centre (460, 285)
+  { id: 'tabouret-1', type: 'tabouret', x: 324, y: 238, largeur: 40, profondeur: 40, hauteur: 65, rotation: 180, materiau: 'chene', table: 'ilot' }, // centre (344, 258), rentré sous le débord
+  { id: 'tabouret-2', type: 'tabouret', x: 424, y: 238, largeur: 40, profondeur: 40, hauteur: 65, rotation: 180, materiau: 'chene', table: 'ilot' }, // centre (444, 258), rentré sous le débord
   { id: 'suspension-ilot-1', type: 'suspension', x: 326.5, y: 200.5, largeur: 35, profondeur: 35, hauteur: 35, z: 175, rotation: 0, materiau: 'papier' }, // centre (344, 218)
   { id: 'suspension-ilot-2', type: 'suspension', x: 426.5, y: 200.5, largeur: 35, profondeur: 35, hauteur: 35, z: 175, rotation: 0, materiau: 'papier' }, // centre (444, 218)
   // ---------- Salon ----------
-  { id: 'meuble-tv',  type: 'meuble-tv', x: 0,   y: 300, largeur: 40, profondeur: 180, hauteur: 50, rotation: 270, materiau: 'chene' },
-  { id: 'ecran',      type: 'ecran',     x: 9,   y: 329, largeur: 22, profondeur: 122, hauteur: 78, z: 50, rotation: 270, materiau: 'noir' }, // 55 pouces
-  { id: 'canape',     type: 'canape',    x: 215, y: 330, largeur: 95, profondeur: 220, hauteur: 80, rotation: 90, materiau: 'boucle',
+  { id: 'meuble-tv',  type: 'meuble-tv', x: 0,   y: 377, largeur: 40, profondeur: 180, hauteur: 50, rotation: 270, materiau: 'chene' }, // centré sur le canapé (y 467)
+  { id: 'ecran',      type: 'ecran',     x: 9,   y: 406, largeur: 22, profondeur: 122, hauteur: 78, z: 50, rotation: 270, materiau: 'noir' }, // 55 pouces
+  { id: 'canape',     type: 'canape',    x: 215, y: 357, largeur: 95, profondeur: 220, hauteur: 80, rotation: 90, materiau: 'boucle',
     coussins: ['terracotta', 'ocre', 'terracotta'], plaid: 'ocre' },
-  { id: 'table-basse', type: 'table-basse-ronde', x: 90, y: 400, largeur: 80, profondeur: 80, hauteur: 35, rotation: 0, materiau: 'travertin' }, // centre (130, 440)
+  { id: 'table-basse', type: 'table-basse-ronde', x: 90, y: 427, largeur: 80, profondeur: 80, hauteur: 35, rotation: 0, materiau: 'travertin' }, // centre (130, 467)
   { id: 'tapis',      type: 'tapis',     x: 75,  y: 296, largeur: 200, profondeur: 280, hauteur: 1.5, rotation: 0, materiau: 'laine' },
-  { id: 'olivier',    type: 'olivier',   x: 5,   y: 505, largeur: 70, profondeur: 70, hauteur: 170, rotation: 0, materiau: 'terre-cuite' }, // centre (40, 540)
+  { id: 'olivier',    type: 'olivier',   x: 569, y: 490, largeur: 70, profondeur: 70, hauteur: 170, rotation: 0, materiau: 'terre-cuite' }, // centre (604, 525), à droite de la baie
   // ---------- Coin repas ----------
-  { id: 'table-sejour', type: 'table-ronde', x: 465, y: 385, largeur: 110, profondeur: 110, hauteur: 75, rotation: 0, materiau: 'chene' }, // centre (520, 440)
-  { id: 'chaise-n', type: 'chaise', x: 497, y: 352, largeur: 46, profondeur: 50, hauteur: 80, rotation: 0,   materiau: 'chene', table: 'table-sejour' },
-  { id: 'chaise-s', type: 'chaise', x: 497, y: 478, largeur: 46, profondeur: 50, hauteur: 80, rotation: 180, materiau: 'chene', table: 'table-sejour' },
-  { id: 'chaise-o', type: 'chaise', x: 433, y: 417, largeur: 50, profondeur: 46, hauteur: 80, rotation: 270, materiau: 'chene', table: 'table-sejour' },
-  { id: 'chaise-e', type: 'chaise', x: 557, y: 417, largeur: 50, profondeur: 46, hauteur: 80, rotation: 90,  materiau: 'chene', table: 'table-sejour' },
-  { id: 'suspension-table', type: 'suspension', x: 490, y: 410, largeur: 60, profondeur: 60, hauteur: 60, z: 150, rotation: 0, materiau: 'papier' }, // centre (520, 440)
+  { id: 'table-sejour', type: 'table-ronde', x: 465, y: 400, largeur: 110, profondeur: 110, hauteur: 75, rotation: 0, materiau: 'chene' }, // centre (520, 455)
+  { id: 'chaise-n', type: 'chaise', x: 497, y: 367, largeur: 46, profondeur: 50, hauteur: 80, rotation: 0,   materiau: 'chene', table: 'table-sejour' },
+  { id: 'chaise-s', type: 'chaise', x: 497, y: 493, largeur: 46, profondeur: 50, hauteur: 80, rotation: 180, materiau: 'chene', table: 'table-sejour' },
+  { id: 'chaise-o', type: 'chaise', x: 433, y: 432, largeur: 50, profondeur: 46, hauteur: 80, rotation: 270, materiau: 'chene', table: 'table-sejour' },
+  { id: 'chaise-e', type: 'chaise', x: 557, y: 432, largeur: 50, profondeur: 46, hauteur: 80, rotation: 90,  materiau: 'chene', table: 'table-sejour' },
+  { id: 'suspension-table', type: 'suspension', x: 490, y: 425, largeur: 60, profondeur: 60, hauteur: 60, z: 150, rotation: 0, materiau: 'papier' }, // centre (520, 455)
   // ---------- Voilages de la baie ----------
   { id: 'voilage-g', type: 'voilage', x: 322, y: 563, largeur: 44,  profondeur: 10, hauteur: 238, z: 1,   rotation: 0, materiau: 'lin' },
   { id: 'voilage-d', type: 'voilage', x: 566, y: 563, largeur: 44,  profondeur: 10, hauteur: 238, z: 1,   rotation: 0, materiau: 'lin' },
   { id: 'tringle',   type: 'tringle', x: 316, y: 567, largeur: 300, profondeur: 2,  hauteur: 2,   z: 240, rotation: 0, materiau: 'noir' },
-  // ---------- Chambre 1 ----------
-  { id: 'lit-ch1',      type: 'lit',     x: 820, y: 0,   largeur: 160, profondeur: 200, hauteur: 110, rotation: 0, materiau: 'chene', linge: ['lin-blanc', 'terracotta'] },
-  { id: 'chevet-g-ch1', type: 'chevet',  x: 775, y: 0,   largeur: 45,  profondeur: 40,  hauteur: 50,  rotation: 0, materiau: 'chene' },
-  { id: 'chevet-d-ch1', type: 'chevet',  x: 980, y: 0,   largeur: 45,  profondeur: 40,  hauteur: 50,  rotation: 0, materiau: 'chene' },
-  { id: 'lampe-g-ch1',  type: 'lampe',   x: 785, y: 7.5, largeur: 25,  profondeur: 25,  hauteur: 42,  z: 50, rotation: 0, materiau: 'lin' },
-  { id: 'lampe-d-ch1',  type: 'lampe',   x: 990, y: 7.5, largeur: 25,  profondeur: 25,  hauteur: 42,  z: 50, rotation: 0, materiau: 'lin' },
-  { id: 'armoire-ch1',  type: 'armoire', x: 900, y: 218, largeur: 200, profondeur: 60,  hauteur: 220, rotation: 180, materiau: 'blanc' },
+  // ---------- Chambre 1 : chambre de deux enfants ----------
+  { id: 'lit-superpose',  type: 'lit-superpose',  x: 706,  y: 0,  largeur: 207, profondeur: 102, hauteur: 165, rotation: 0,   materiau: 'chene', linge: ['terracotta', 'ocre'] }, // 2 × 90 × 190
+  { id: 'rangement-cubes', type: 'etagere-cubes', x: 945,  y: 0,  largeur: 147, profondeur: 39,  hauteur: 77,  rotation: 0,   materiau: 'blanc' },
+  { id: 'bureau-double',  type: 'bureau',         x: 1050, y: 58, largeur: 60,  profondeur: 200, hauteur: 75,  rotation: 90,  materiau: 'chene' }, // sous la fenêtre
+  { id: 'chaise-enfant-1', type: 'chaise',        x: 1015, y: 85,  largeur: 50, profondeur: 46,  hauteur: 80,  rotation: 270, materiau: 'chene', table: 'bureau-double' },
+  { id: 'chaise-enfant-2', type: 'chaise',        x: 1015, y: 185, largeur: 50, profondeur: 46,  hauteur: 80,  rotation: 270, materiau: 'chene', table: 'bureau-double' },
+  { id: 'etagere-bureau-1', type: 'etagere',      x: 1085, y: 58, largeur: 25,  profondeur: 100, hauteur: 3,   z: 150, rotation: 90, materiau: 'chene' },
+  { id: 'etagere-bureau-2', type: 'etagere',      x: 1085, y: 58, largeur: 25,  profondeur: 100, hauteur: 3,   z: 185, rotation: 90, materiau: 'chene' },
+  { id: 'armoire-ch1',    type: 'armoire',        x: 788,  y: 218, largeur: 180, profondeur: 60, hauteur: 220, rotation: 180, materiau: 'blanc' },
   // ---------- Chambre 2 ----------
   // x 886 au lieu de 882 : le vantail de la porte de la chambre 2 ouvert à 90° (x 796 → 884) touchait le lit (voir HYPOTHESES.md)
   { id: 'lit-ch2',       type: 'lit',     x: 886,  y: 287, largeur: 140, profondeur: 190, hauteur: 110, rotation: 0,   materiau: 'chene', linge: ['lin-blanc', 'terracotta'] },
@@ -206,10 +211,10 @@ const passages = [
   { id: 'entree-degagement', nom: 'Entrée → dégagement',                         type: 'chemin', de: [10, 20, 109, 208],   vers: [655, 295, 780, 380] },
   { id: 'entree-baie',       nom: 'Entrée → baie (partie gauche)',               type: 'chemin', de: [10, 20, 109, 208],   vers: [367, 487, 445, 530] },
   { id: 'sejour-baie',       nom: 'Couloir canapé / table → baie',               type: 'chemin', de: [312, 330, 430, 400], vers: [367, 487, 445, 530] },
-  { id: 'lit1-gauche',       nom: 'Chambre 1 : côté gauche du lit',              type: 'ecart',  a: ['lit-ch1'], b: ['mur:sde-ch1-double'] },
-  { id: 'lit1-pied',         nom: 'Chambre 1 : pied du lit ↔ armoire',           type: 'ecart',  a: ['lit-ch1'], b: ['armoire-ch1'] },
-  { id: 'lit1-droit',        nom: 'Chambre 1 : côté droit du lit',               type: 'ecart',  a: ['lit-ch1'], b: ['mur:facade-droite-1'] },
-  { id: 'lit1-acces-droit',  nom: 'Chambre 1 : porte → côté droit du lit',       type: 'chemin', de: [712, 225, 770, 272], vers: [985, 60, 1105, 190] },
+  { id: 'ch1-lit-armoire',   nom: 'Chambre 1 : lit superposé ↔ armoire',         type: 'ecart',  a: ['lit-superpose'], b: ['armoire-ch1'] },
+  { id: 'ch1-armoire-bureau', nom: 'Chambre 1 : armoire ↔ bureau',                type: 'ecart',  a: ['armoire-ch1'], b: ['bureau-double'] },
+  { id: 'ch1-porte-bureaux', nom: 'Chambre 1 : porte → bureaux',                 type: 'chemin', de: [712, 225, 770, 272], vers: [960, 90, 1010, 240] },
+  { id: 'ch1-porte-cubes',   nom: 'Chambre 1 : porte → rangement à cubes',       type: 'chemin', de: [712, 225, 770, 272], vers: [945, 40, 1010, 90] },
   { id: 'lit2-gauche',       nom: 'Chambre 2 : porte → côté gauche du lit',      type: 'chemin', de: [800, 300, 840, 372], vers: [800, 400, 880, 470] },
   { id: 'lit2-droit',        nom: 'Chambre 2 : côté droit du lit ↔ armoire',     type: 'ecart',  a: ['lit-ch2'], b: ['armoire-ch2'] },
   { id: 'lit2-bureau',       nom: 'Chambre 2 : pied du lit ↔ chaise de bureau',  type: 'ecart',  a: ['lit-ch2'], b: ['chaise-bureau'] }
@@ -712,7 +717,7 @@ groups.equipements.visible = false;
 for (const n of ['amenagement', 'passages']) { groups[n] = new THREE.Group(); groups[n].name = n; scene.add(groups[n]); }
 const DRESSED = new Set(furniture.filter(f => f.habille).map(f => f.habille));
 const ROUND_TYPES = new Set(['table-basse-ronde', 'table-ronde', 'tabouret', 'suspension', 'olivier', 'lampe']);
-const NON_BLOQUANTS = new Set(['tapis', 'suspension', 'revetement', 'miroir', 'etagere', 'tringle']);
+const NON_BLOQUANTS = new Set(['tapis', 'suspension', 'revetement', 'miroir', 'etagere', 'tringle', 'meuble-haut']);
 
 function canvasTexture(size, draw) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -801,6 +806,7 @@ const MATERIAUX = {
   lin:            { color: 0xe6dccb, map: 'lin', roughness: 1, transparent: true, opacity: 0.84, side: THREE.DoubleSide },
   'abat-jour':    { color: 0xeee5d4, map: 'lin', roughness: 1, side: THREE.DoubleSide, emissive: 0xffe8c4, emissiveIntensity: 0.35 },
   'lin-blanc':    { color: 0xf7f4ef, map: 'lin', roughness: 1 },
+  'lin-panier':   { color: 0xd8cbb2, map: 'lin', roughness: 1 },
   terracotta:     { color: 0xC46A45, map: 'lin', roughness: 1 },
   ocre:           { color: 0xC9923E, map: 'laine', roughness: 1 },
   'terre-cuite':  { color: 0xB8693F, roughness: 0.95, clip: false },
@@ -915,6 +921,51 @@ const BUILD = {
       RB(g, W - 0.6, y1 - y0, 2, 0.4, S, 0, y0, zb + 60);
       RB(g, 1.2, 38, 1.2, 0.45, N, W / 2 - 6, y0 === 11 ? y1 - 46 : y0 + 6, zb + 61.9);
     }
+  },
+  'meuble-haut'(g, f, W, D, H) {
+    const S = FM('sauge'), N = FM('noir'), n = f.portes || 1, dw = W / n;
+    RB(g, W - 0.2, H, D - 2, 0.5, S, 0, 0, -1);
+    for (let i = 0; i < n; i++) {
+      const x = -W / 2 + dw * (i + 0.5);
+      RB(g, dw - 0.5, H - 1, 2, 0.4, S, x, 0.5, D / 2 - 1);
+      if (H >= 50) RB(g, Math.min(16, dw * 0.4), 1, 1.2, 0.45, N, x, 5, D / 2 + 0.6);   // poignée en bas de porte
+    }
+  },
+  'lit-superpose'(g, f, W, D, H) {
+    const O = FM('chene', 1.5, 1), L = FM('lin-blanc'), N = FM('noir'), [c1, c2] = f.linge || ['terracotta', 'ocre'], p = 6;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) RB(g, p, H, p, 1, O, sx * (W / 2 - p / 2), 0, sz * (D / 2 - p / 2));
+    const iw = W - 2 * p, id = D - 2 * p;
+    for (const [y0, c] of [[16, c1], [112, c2]]) {
+      RB(g, iw, 14, 3, 1, O, 0, y0, D / 2 - 1.5); RB(g, iw, 14, 3, 1, O, 0, y0, -D / 2 + 1.5);   // longerons
+      RB(g, iw, 2, id, 0.5, O, 0, y0 + 4, 0);                                                   // sommier
+      RB(g, 190, 16, 90, 4, L, 0, y0 + 6, 0);                                                   // matelas 90 × 190
+      RB(g, 125, 4, 92, 2, L, 30, y0 + 21, 0);                                                  // couette lin
+      RB(g, 60, 2, 94, 1, FM(c), 60, y0 + 24.5, 0);                                             // jeté
+      RB(g, 40, 11, 62, 5, L, -W / 2 + p + 25, y0 + 22, 0).rotation.z = 0.22;                  // oreiller
+    }
+    for (const sx of [-1, 1]) { RB(g, 2.5, 42, id, 0.8, O, sx * (W / 2 - p / 2), 16, 0); RB(g, 2.5, H - 117, id, 0.8, O, sx * (W / 2 - p / 2), 112, 0); }
+    // barrières du haut (ouverture de 45 cm pour l'échelle, côté +x)
+    RB(g, iw, 7, 2.5, 1, O, 0, 145, -D / 2 + 1.5);
+    RB(g, iw - 45, 7, 2.5, 1, O, -22.5, 145, D / 2 - 1.5);
+    // échelle
+    const x1 = W / 2 - p - 42, x2 = W / 2 - p - 4, zl = D / 2 - 1.5;
+    for (const x of [x1, x2]) ROD(g, [x, 0, zl], [x, 150, zl], 1.8, O);
+    for (let y = 30; y <= 130; y += 25) ROD(g, [x1, y, zl], [x2, y, zl], 1.4, O);
+    // tiroirs de rangement sous le lit du bas
+    const dw = (iw - 50) / 2;
+    for (const sx of [-1, 1]) { const x = sx * (dw / 2 + 1) - 22; RB(g, dw, 13, 2, 0.6, O, x, 1, D / 2 - 2); SPH(g, 1.2, N, x, 7.5, D / 2 - 0.6); }
+  },
+  'etagere-cubes'(g, f, W, D, H) {
+    const Wt = FM('blanc'), t = 2, nx = 4, ny = 2, cw = (W - t) / nx, ch = (H - t) / ny;
+    RB(g, W, t, D, 0.4, Wt, 0, 0, 0); RB(g, W, t, D, 0.4, Wt, 0, H - t, 0);
+    for (let i = 0; i <= nx; i++) RB(g, t, H, D, 0.4, Wt, -W / 2 + t / 2 + i * cw, 0, 0);
+    for (let j = 1; j < ny; j++) RB(g, W, t, D, 0.4, Wt, 0, j * ch, 0);
+    RB(g, W, H, 0.6, 0.2, Wt, 0, 0, -D / 2 + 0.3);
+    ['lin-panier', 'terracotta', null, 'ocre', null, 'lin-panier', 'terracotta', null].forEach((m, k) => {
+      if (!m) return;
+      const i = k % nx, j = (k / nx) | 0;
+      RB(g, cw - t - 3, ch - t - 6, D - 6, 2, FM(m), -W / 2 + t / 2 + (i + 0.5) * cw, t + j * ch + 0.5, 1);
+    });
   },
   revetement(g, f, W, D, H) { RB(g, W, H, D, 0.1, FM('zellige', Math.max(W, 4) / 40, H / 40)); },
   etagere(g, f, W, D, H) {
@@ -1176,7 +1227,7 @@ function footprint(f) {
   return { kind: 'rect', x0: f.x, y0: f.y, x1: f.x + f.largeur, y1: f.y + f.profondeur };
 }
 const LIBELLE = {
-  'colonne-frigo': 'colonne frigo', 'meuble-bas': 'meuble bas', ilot: 'îlot', tabouret: 'tabouret', 'meuble-tv': 'meuble TV', ecran: 'écran',
+  'lit-superpose': 'lit superposé', 'etagere-cubes': 'rangement à cubes', 'meuble-haut': 'meuble haut', 'colonne-frigo': 'colonne frigo', 'meuble-bas': 'meuble bas', ilot: 'îlot', tabouret: 'tabouret', 'meuble-tv': 'meuble TV', ecran: 'écran',
   canape: 'canapé', 'table-basse-ronde': 'table basse', olivier: 'olivier', 'table-ronde': 'table', chaise: 'chaise', voilage: 'voilage',
   lit: 'lit', chevet: 'chevet', lampe: 'lampe', armoire: 'armoire', bureau: 'bureau', 'paroi-douche': 'paroi de douche',
   'douche-pluie': 'douche', 'meuble-vasque': 'meuble vasque', 'lave-linge': 'lave-linge', 'placard-ballon': 'placard du ballon',

@@ -176,12 +176,13 @@ log('');
 /* 3 bis. Aménagement : positions demandées (cahier des charges, étape 2) */
 /* ---------------------------------------------------------------- */
 // [x, y, largeur, profondeur, hauteur] tels que demandés (centres convertis en coin haut-gauche)
-const BRIEF_FURN = {
-  'ilot': [294, 173, 200, 90, 90], 'tabouret-1': [320, 265, 40, 40, 65], 'tabouret-2': [380, 265, 40, 40, 65], 'tabouret-3': [440, 265, 40, 40, 65],
-  'meuble-tv': [0, 300, 40, 180, 50], 'canape': [215, 330, 95, 220, 80], 'table-basse': [90, 400, 80, 80, 35],
-  'table-sejour': [465, 385, 110, 110, 75], 'lit-ch1': [820, 0, 160, 200, null], 'armoire-ch1': [900, 218, 200, 60, 220],
-  'lit-ch2': [882, 287, 140, 190, null], 'bureau-ch2': [883, 517, 120, 60, null], 'armoire-ch2': [1050, 300, 60, 180, 220],
-  'cuisine-frigo': [193, 0, 61, 63, 200], 'suspension-ilot-1': [null, null, 35, 35, null], 'suspension-table': [490, 410, 60, 60, null]
+const BRIEF_FURN = {   // état demandé après l'étape 3 (canapé contre la façade, 2 tabourets, table décalée de 15 cm, chambre d'enfants)
+  'ilot': [294, 173, 200, 90, 90], 'tabouret-1': [324, 238, 40, 40, 65], 'tabouret-2': [424, 238, 40, 40, 65],
+  'meuble-tv': [0, 377, 40, 180, 50], 'canape': [215, 357, 95, 220, 80], 'table-basse': [90, 427, 80, 80, 35],
+  'table-sejour': [465, 400, 110, 110, 75], 'lit-ch2': [882, 287, 140, 190, null], 'bureau-ch2': [883, 517, 120, 60, null],
+  'armoire-ch2': [1050, 300, 60, 180, 220], 'cuisine-frigo': [193, 0, 61, 63, 200], 'suspension-ilot-1': [null, null, 35, 35, null],
+  'suspension-table': [490, 425, 60, 60, null], 'lit-superpose': [706, 0, 207, 102, 165], 'bureau-double': [1050, 58, 60, 200, 75],
+  'armoire-ch1': [788, 218, 180, 60, 220]
 };
 if (FURN) {
   log('## 3 bis. Aménagement : positions des meubles par rapport à la demande');

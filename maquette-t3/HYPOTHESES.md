@@ -102,7 +102,9 @@ Aucun autre meuble n'a été déplacé ni redimensionné.
 | Visite | Les meubles bloquent le déplacement, sauf le tapis et les suspensions. Les vantaux ouverts ne bloquent toujours pas. |
 | Calcul des passages | Plus grand disque pouvant circuler d'une zone à l'autre (grille de 2 cm), avec la largeur réelle mesurée au point le plus étroit. Les portes sont supposées fermées : un vantail ouvert se rabat. Leurs débattements sont contrôlés à part, aucun meuble ne doit s'y trouver. |
 
-## 6. Points signalés, non corrigés (positions demandées conservées)
+## 6. Points signalés à l'étape 2 (en partie réglés à l'étape 3)
+
+> Le séjour et la chambre 1 ont été réaménagés à l'étape 3 (voir plus bas). Les passages du séjour et de la chambre 1 cités ici ne s'appliquent plus ; ceux de la chambre 2 restent valables.
 
 ### Passages de moins de 80 cm
 
@@ -135,3 +137,57 @@ dégagement, il faudrait aussi éloigner la chaise nord de la table (ou tourner 
 - **Porte de la salle d'eau ouverte à 90°** (constat géométrique de l'étape 1) : son vantail (x 677 → 681, y 285 → 364)
   laisse 21 cm jusqu'au mur haut du WC (y 385). Ouverte en grand, elle ferme donc l'accès au dégagement.
 - **Bureau sous la fenêtre de la chambre 2** : le plateau est à 75 cm, sous l'allège de 90 cm, donc pas de conflit avec les vantaux.
+
+---
+
+# Étape 3 : séjour dégagé, chambre d'enfants, meubles hauts
+
+## 7. Modifications demandées
+
+| Zone | Avant | Après | Choix |
+|------|-------|-------|-------|
+| Canapé | x 215 → 310, y 330 → 550 | **y 357 → 577** : 220 cm, toujours face à la TV, bout contre la façade | Option « bout contre la façade » validée. 220 cm suffit : il reste 94 cm entre le plateau de l'îlot et le canapé. |
+| Meuble TV et écran | y 300 → 480 | **y 377 → 557** (écran y 406 → 528) | Recentrés sur le canapé (y 467). |
+| Table basse | centre (130, 440) | **centre (130, 467)** | Recentrée sur le canapé. |
+| Olivier | angle mur gauche / façade (40, 540) | **à droite de la baie, centre (604, 525)** | La place dans l'angle est prise par le meuble TV recentré. |
+| Tabourets | 3, centres x 340 / 400 / 460, y 285 | **2, centres (344, 258) et (444, 258)** | Rentrés sous le débord de 25 cm de l'îlot, sous les deux suspensions. |
+| Table et 4 chaises | centre (520, 440) | **centre (520, 455)**, décalée de 15 cm vers la baie | Option validée : la chaise côté îlot laisse 82 cm jusqu'au mur de la salle d'eau (67 avant). La zone devant la partie gauche de la baie reste libre. La suspension suit la table. |
+| Tapis | y 296 → 576 | inchangé | Il ne peut pas être centré sur le canapé (y 467) sans entrer dans la façade. |
+| Cuisine | étagère en chêne sur 240 cm | **meubles hauts sauge** au-dessus de l'évier et du lave-vaisselle (x 341 → 494, 35 cm de profondeur, de 150 à 230 cm), et un caisson au-dessus de la colonne frigo (200 → 230). Pas de meuble haut au-dessus de la plaque : l'étagère ouverte en chêne y est conservée, raccourcie à 87 cm (x 254 → 341, à 150 cm). | Dessus des meubles hauts aligné à 230 cm (20 cm sous le plafond), 60 cm entre plan de travail et meubles hauts. Pas de hotte, car non demandée. Il faudra peut-être en prévoir une, ou supprimer l'étagère au-dessus de la plaque à cause de la chaleur. |
+
+## 8. Chambre 1 : chambre de deux enfants (x 706 → 1110, y 0 → 278)
+
+| Élément | Position | Pourquoi |
+|---------|----------|----------|
+| Lit superposé 2 × 90 × 190, chêne | x 706 → 913, y 0 → 102, haut de 165 cm | Dans l'angle mur double / mur du couloir, la partie la plus sombre de la pièce et loin de la porte. Couchage du haut à 128 cm du sol (environ 120 cm sous plafond), barrières, échelle côté chambre, 2 tiroirs sous le lit du bas. Linge en lin blanc, jetés terracotta et ocre. |
+| Bureau double en chêne 200 × 60 | x 1050 → 1110, y 58 → 258, contre la façade droite, sous la fenêtre | Lumière naturelle pour les deux postes (2 × 100 cm). Plateau à 75 cm, sous l'allège de 90 cm : pas de conflit avec la fenêtre. |
+| 2 chaises | rentrées sous le bureau, centres y 108 et 208 | Même modèle que les chaises du séjour. |
+| 2 étagères murales en chêne | au-dessus du bureau, x 1085 → 1110, y 58 → 158, à 150 et 185 cm | Placées à côté de la fenêtre, pas devant. |
+| Rangement à cubes 4 × 2 (paniers) | x 945 → 1092, y 0 → 39, haut de 77 cm, contre le mur du couloir | Jouets et livres, entre le lit et le bureau. |
+| Armoire blanche 180 × 60 × 220 | x 788 → 968, y 218 → 278, contre le mur bas | Hors du débattement de la porte (x 706 → 781) et elle ne masque plus la fenêtre. Elle passe de 200 à 180 cm de large pour garder 82 cm jusqu'au bureau. |
+
+Passages de la chambre 1 : lit ↔ armoire 116 cm, armoire ↔ bureau 82 cm, porte → bureaux 82 cm, porte → cubes 82 cm.
+L'entrée de la pièce fait 82 cm entre le mur double et l'armoire (la porte fait 75 cm). La chaise du premier bureau
+est à 46 cm devant la dernière colonne de cubes : il faut la tirer pour ouvrir ce panier.
+
+Ajustements faits : l'armoire est décalée de 3 cm (x 785 → 788), pour passer de 79 à 82 cm à l'entrée.
+Le lit superposé fait 102 cm de profondeur au lieu de 97, pour loger un matelas de 90 cm entre les montants.
+
+## 9. Ouverture des fenêtres
+
+Le sens d'ouverture n'est pas connu. L'hypothèse reste celle de l'étape 1 : 2 vantaux à la française ouvrant vers
+l'intérieur. Avec le nouvel aménagement, aucun meuble n'est dans leur débattement : le bureau de la chambre 1 est
+sous l'allège, le bureau de la chambre 2 aussi.
+
+## 10. Passages après l'étape 3
+
+| Passage | Largeur |
+|---------|---------|
+| Allée cuisine / îlot | 110 cm |
+| Entrée → dégagement | **82 cm** (34 avant) |
+| Entrée → baie | **85 cm** (34 avant) |
+| Couloir canapé / table → baie | 123 cm |
+| Chambre 1 (4 passages) | 82 à 116 cm |
+| Chambre 2 : porte → côté gauche du lit | 90 cm |
+| Chambre 2 : lit ↔ armoire | **24 cm** (inchangé, non demandé) |
+| Chambre 2 : pied du lit ↔ chaise de bureau | **5 cm** (inchangé, non demandé) |
